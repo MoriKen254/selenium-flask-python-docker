@@ -240,6 +240,133 @@ docker-compose up --build
 docker-compose up --build backend
 ```
 
+## Testing
+
+The backend includes comprehensive unit tests using pytest with excellent coverage.
+
+### Test Structure
+
+```
+backend/
+├── tests/
+│   ├── __init__.py
+│   ├── conftest.py           # Test fixtures and configuration
+│   └── test_api.py           # API endpoint tests
+├── pytest.ini                # Pytest configuration
+├── .coveragerc              # Coverage configuration
+└── run_tests.sh             # Test runner script
+```
+
+### Running Tests
+
+**Option 1: Inside Docker Container (Recommended)**
+
+```bash
+# Enter the backend container
+docker exec -it todo_backend bash
+
+# Run tests with coverage
+pytest --cov=app --cov-report=term-missing --cov-report=html -v
+
+# Or use the convenience script
+bash run_tests.sh
+```
+
+**Option 2: Locally (if you have Python installed)**
+
+```bash
+cd backend
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run tests
+pytest -v
+
+# Run tests with coverage
+pytest --cov=app --cov-report=term-missing --cov-report=html -v
+```
+
+### Test Coverage
+
+The test suite includes:
+
+- **Health Check Tests**: Verify API health endpoint
+- **Root Endpoint Tests**: Test API information endpoint
+- **GET Tests**: Retrieve all todos and individual todos
+- **POST Tests**: Create new todos with various scenarios
+- **PUT Tests**: Update existing todos (title, description, completed status)
+- **DELETE Tests**: Remove todos and verify deletion
+- **Edge Cases**: Special characters, unicode, long strings, null values
+- **Data Integrity**: Auto-increment IDs, timestamps, defaults
+- **Error Handling**: 404s, missing data, invalid inputs
+- **Concurrency**: Multiple updates, duplicate deletes
+
+**Coverage Goals**: The test suite aims for >90% code coverage of `app.py`
+
+### Viewing Coverage Reports
+
+After running tests with coverage:
+
+```bash
+# Terminal output shows coverage summary
+
+# View detailed HTML report
+# The report is generated in backend/htmlcov/
+# Open backend/htmlcov/index.html in a browser
+```
+
+### Test Configuration
+
+**pytest.ini** - Configure pytest behavior:
+- Test discovery patterns
+- Coverage reporting
+- Test markers (unit, integration, slow)
+
+**.coveragerc** - Configure coverage collection:
+- Source directories
+- Files to omit
+- Report formatting
+
+### Writing New Tests
+
+When adding new API endpoints or modifying existing ones:
+
+1. Add test cases in `tests/test_api.py`
+2. Use existing fixtures from `conftest.py`
+3. Follow the existing test class structure
+4. Include positive and negative test cases
+5. Test edge cases and error conditions
+6. Run tests to verify coverage remains high
+
+Example test structure:
+
+```python
+class TestNewEndpoint:
+    """Tests for new endpoint"""
+
+    def test_success_case(self, client, clean_db):
+        """Test successful operation"""
+        response = client.get('/api/new-endpoint')
+        assert response.status_code == 200
+
+    def test_error_case(self, client, clean_db):
+        """Test error handling"""
+        response = client.get('/api/new-endpoint/invalid')
+        assert response.status_code == 404
+```
+
+### Continuous Integration
+
+The test suite is designed to integrate with CI/CD pipelines:
+
+```bash
+# Run tests in CI environment
+pytest --cov=app --cov-report=xml --cov-report=term -v
+
+# The XML report can be used by coverage services like Codecov
+```
+
 ## Troubleshooting
 
 ### Port Already in Use
