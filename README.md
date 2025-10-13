@@ -6,7 +6,7 @@ A complete microservices-based Todo List application built with React, Flask, an
 
 This application follows a microservices architecture with the following components:
 
-- **Frontend**: React 18 with modern JavaScript (Port 3000)
+- **Frontend**: React 18 with TypeScript (Port 3000)
 - **Backend**: Flask RESTful API (Port 5000)
 - **Database**: PostgreSQL 15 (Port 5432)
 - **Database Admin**: CloudBeaver web interface (Port 8978)
@@ -14,10 +14,12 @@ This application follows a microservices architecture with the following compone
 ## Tech Stack
 
 ### Frontend
-- React 18.2.0
-- Axios for API calls
+- React 18.2.0 with TypeScript 4.9.5
+- Axios for API calls with type-safe interfaces
 - Modern CSS with responsive design
 - State management with React Hooks
+- Strict TypeScript configuration for type safety
+- Custom type definitions for API models
 
 ### Backend
 - Python 3.11
@@ -73,14 +75,18 @@ This application follows a microservices architecture with the following compone
 │   └── init.sql               # Database schema and initial data
 ├── frontend/
 │   ├── Dockerfile             # Frontend container configuration
-│   ├── package.json           # Node dependencies
+│   ├── package.json           # Node dependencies + TypeScript
+│   ├── tsconfig.json         # TypeScript configuration
 │   ├── public/
 │   │   └── index.html        # HTML template
 │   └── src/
-│       ├── index.js          # React entry point
+│       ├── types/
+│       │   └── todo.ts       # TypeScript type definitions
+│       ├── index.tsx         # React entry point (TypeScript)
 │       ├── index.css         # Global styles
-│       ├── App.js            # Main React component
-│       └── App.css           # Component styles
+│       ├── App.tsx           # Main React component (TypeScript)
+│       ├── App.css           # Component styles
+│       └── react-app-env.d.ts  # React type declarations
 ├── docker-compose.yaml        # Orchestration configuration
 ├── .env                       # Environment variables (git-ignored)
 ├── .env.example              # Environment template
