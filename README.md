@@ -14,6 +14,7 @@ This application follows a microservices architecture with the following compone
 ## Tech Stack
 
 ### Frontend
+
 - React 18.2.0 with TypeScript 4.9.5
 - Axios for API calls with type-safe interfaces
 - Modern CSS with responsive design
@@ -22,17 +23,20 @@ This application follows a microservices architecture with the following compone
 - Custom type definitions for API models
 
 ### Backend
+
 - Python 3.11
 - Flask 3.0.0
 - Flask-CORS for cross-origin requests
 - psycopg2 for PostgreSQL integration
 
 ### Database
+
 - PostgreSQL 15 (Alpine)
 - Automated schema initialization
 - Indexed queries for performance
 
 ### Infrastructure
+
 - Docker & Docker Compose
 - Microservices architecture
 - Health checks for service reliability
@@ -41,12 +45,14 @@ This application follows a microservices architecture with the following compone
 ## Features
 
 ### Complete CRUD Operations
+
 - **Create**: Add new todos with title and description
 - **Read**: View all todos with real-time updates
 - **Update**: Edit todo details and toggle completion status
 - **Delete**: Remove todos with confirmation
 
 ### User Interface
+
 - Clean, modern, and responsive design
 - Real-time todo statistics (Total, Completed, Pending)
 - Inline editing functionality
@@ -55,14 +61,14 @@ This application follows a microservices architecture with the following compone
 
 ### API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Health check |
-| GET | `/api/todos` | Get all todos |
-| GET | `/api/todos/:id` | Get a specific todo |
-| POST | `/api/todos` | Create a new todo |
-| PUT | `/api/todos/:id` | Update a todo |
-| DELETE | `/api/todos/:id` | Delete a todo |
+| Method | Endpoint         | Description         |
+| ------ | ---------------- | ------------------- |
+| GET    | `/health`        | Health check        |
+| GET    | `/api/todos`     | Get all todos       |
+| GET    | `/api/todos/:id` | Get a specific todo |
+| POST   | `/api/todos`     | Create a new todo   |
+| PUT    | `/api/todos/:id` | Update a todo       |
+| DELETE | `/api/todos/:id` | Delete a todo       |
 
 ## Project Structure
 
@@ -139,6 +145,7 @@ docker-compose up
 ```
 
 This single command will:
+
 - Build all Docker images
 - Start all services (PostgreSQL, Flask, React, CloudBeaver)
 - Initialize the database with schema and sample data
@@ -156,19 +163,23 @@ This single command will:
 ### Frontend Interface
 
 1. **Create a Todo**:
+
    - Enter a title (required) and description (optional)
    - Click "Add Todo"
 
 2. **View Todos**:
+
    - All todos are displayed in reverse chronological order
    - See completion status, title, description, and creation date
 
 3. **Update a Todo**:
+
    - Click "Edit" button on any todo
    - Modify the title or description
    - Click "Save" or "Cancel"
 
 4. **Toggle Completion**:
+
    - Click the checkbox to mark as complete/incomplete
 
 5. **Delete a Todo**:
@@ -202,6 +213,7 @@ curl -X DELETE http://localhost:5000/api/todos/1
 1. Navigate to http://localhost:8978
 2. Complete the initial setup wizard
 3. Create a new connection:
+
    - **Host**: `postgres`
    - **Port**: `5432`
    - **Database**: `tododb`
@@ -248,130 +260,211 @@ docker-compose up --build backend
 
 ## Testing
 
-The backend includes comprehensive unit tests using pytest with excellent coverage.
+This application includes comprehensive testing at multiple levels:
+
+- **Backend API Tests**: Pytest-based unit tests with 94% coverage (40 test cases)
+- **Frontend Selenium Tests**: Browser automation tests with dual-mode execution
+
+### Testing Strategy
+
+The project uses a **dual-mode testing strategy** for frontend tests:
+
+1. **Unit Mode** (Fast, Isolated)
+
+   - Tests run against frontend only
+   - All backend APIs mocked via browser-level JavaScript injection
+   - No dependencies on backend or database
+   - Ideal for rapid development feedback
+
+2. **Integration Mode** (E2E, Real System)
+   - Same test code runs against fully deployed system
+   - Tests use real backend API endpoints
+   - Validates complete end-to-end workflows
+   - Ensures system integration works correctly
+
+**Key Advantage**: Zero code duplication - single test codebase switches modes via configuration.
+
+### Quick Start - Running Tests
+
+**Backend API Tests:**
+
+```bash
+# Inside backend container
+docker exec -it todo_backend pytest -v --cov=. --cov-report=term
+```
+
+**Frontend Selenium Tests:**
+
+Linux/Mac:
+```bash
+cd tests
+./run_unit_tests.sh          # Unit mode (fast, mocked APIs)
+./run_integration_tests.sh   # Integration mode (full E2E)
+```
+
+Windows PowerShell:
+```powershell
+cd tests
+.\run_unit_tests.ps1         # Unit mode (fast, mocked APIs)
+.\run_integration_tests.ps1  # Integration mode (full E2E)
+```
+
+Windows Command Prompt:
+```cmd
+cd tests
+run_unit_tests.bat           # Unit mode (fast, mocked APIs)
+run_integration_tests.bat    # Integration mode (full E2E)
+```
 
 ### Test Structure
 
 ```
-backend/
-├── tests/
+tests/                          # Frontend Selenium tests
+├── config.py                   # Configuration management (mode switching)
+├── conftest.py                 # Pytest fixtures (browser setup, interceptor injection)
+├── pytest.ini                  # Pytest configuration
+├── .env.unit                   # Unit mode configuration
+├── .env.integration            # Integration mode configuration
+├── run_unit_tests.sh           # Unit test runner (Linux/Mac)
+├── run_integration_tests.sh    # Integration test runner (Linux/Mac)
+├── run_unit_tests.ps1          # Unit test runner (Windows PowerShell)
+├── run_integration_tests.ps1   # Integration test runner (Windows PowerShell)
+├── run_unit_tests.bat          # Unit test runner (Windows CMD)
+├── run_integration_tests.bat   # Integration test runner (Windows CMD)
+├── Dockerfile                  # Test container image
+├── mocks/
 │   ├── __init__.py
-│   ├── conftest.py           # Test fixtures and configuration
-│   └── test_api.py           # API endpoint tests
-├── pytest.ini                # Pytest configuration
-├── .coveragerc              # Coverage configuration
-└── run_tests.sh             # Test runner script
+│   └── api_interceptor.js      # Browser-level API mocking
+├── pages/
+│   ├── __init__.py
+│   └── todo_page.py            # Page Object Model
+└── test_todo_crud.py           # Example tests (work in both modes)
+
+backend/tests/                  # Backend API tests
+├── conftest.py                 # Test fixtures and configuration
+├── test_api.py                 # 40 comprehensive API tests
+├── pytest.ini                  # Pytest configuration
+└── .coveragerc                 # Coverage configuration
 ```
 
-### Running Tests
+### How Dual-Mode Testing Works
 
-**Option 1: Inside Docker Container (Recommended)**
+**Architecture Overview:**
 
-```bash
-# Enter the backend container
-docker exec -it todo_backend bash
+```
+Unit Mode (Mocked):
+┌─────────────────────┐
+│ Selenium WebDriver  │
+│  └─ Browser         │
+│     ├─ React App    │
+│     └─ API Mocks    │ ← JavaScript injected
+└─────────────────────┘
 
-# Run tests with coverage
-pytest --cov=app --cov-report=term-missing --cov-report=html -v
-
-# Or use the convenience script
-bash run_tests.sh
+Integration Mode (Real):
+┌─────────────────────┐
+│ Selenium WebDriver  │
+│  └─ Browser         │
+│     └─ React App    │
+└─────────┬───────────┘
+          │ HTTP
+          ↓
+┌─────────────────────┐
+│ Flask Backend       │
+│  └─ PostgreSQL      │
+└─────────────────────┘
 ```
 
-**Option 2: Locally (if you have Python installed)**
+**Key Components:**
 
-```bash
-cd backend
+1. **API Interceptor** (`mocks/api_interceptor.js`)
 
-# Install dependencies
-pip install -r requirements.txt
+   - JavaScript code injected into browser in unit mode
+   - Intercepts `fetch()` and `XMLHttpRequest` calls
+   - Returns mock responses for all CRUD operations
+   - Maintains in-memory mock data store
 
-# Run tests
-pytest -v
+2. **Configuration System** (`config.py`)
 
-# Run tests with coverage
-pytest --cov=app --cov-report=term-missing --cov-report=html -v
-```
+   - Switches modes via `TEST_MODE` environment variable
+   - `TEST_MODE=unit` → Mocked APIs
+   - `TEST_MODE=integration` → Real backend
+
+3. **Page Object Model** (`pages/todo_page.py`)
+
+   - Abstracts all UI interactions
+   - Works identically in both modes
+   - 30+ reusable methods for todo operations
+
+4. **Pytest Fixtures** (`conftest.py`)
+   - Automatically injects interceptor in unit mode
+   - Sets up WebDriver (Chrome/Firefox)
+   - Captures screenshots on failure
 
 ### Test Coverage
 
-The test suite includes:
+**Backend API Tests** (94% coverage):
 
-- **Health Check Tests**: Verify API health endpoint
-- **Root Endpoint Tests**: Test API information endpoint
-- **GET Tests**: Retrieve all todos and individual todos
-- **POST Tests**: Create new todos with various scenarios
-- **PUT Tests**: Update existing todos (title, description, completed status)
-- **DELETE Tests**: Remove todos and verify deletion
-- **Edge Cases**: Special characters, unicode, long strings, null values
-- **Data Integrity**: Auto-increment IDs, timestamps, defaults
-- **Error Handling**: 404s, missing data, invalid inputs
-- **Concurrency**: Multiple updates, duplicate deletes
+- ✅ Health check and root endpoint
+- ✅ GET operations (all todos, single todo, not found)
+- ✅ POST operations (create with validation)
+- ✅ PUT operations (update title, description, completion)
+- ✅ DELETE operations (remove todos)
+- ✅ Edge cases (special chars, unicode, long strings)
+- ✅ Data integrity (timestamps, defaults)
+- ✅ Error handling (404s, invalid data)
+- ✅ Concurrency scenarios
 
-**Coverage Goals**: The test suite aims for >90% code coverage of `app.py`
+**Frontend Selenium Tests**:
 
-### Viewing Coverage Reports
+- ✅ Todo creation with various inputs
+- ✅ Todo reading and display
+- ✅ Todo updating (inline editing)
+- ✅ Todo deletion with confirmation
+- ✅ Completion status toggling
+- ✅ Mode-specific tests (mock manipulation, persistence)
 
-After running tests with coverage:
+### Comprehensive Documentation
 
-```bash
-# Terminal output shows coverage summary
+For detailed information about the testing strategy, including:
 
-# View detailed HTML report
-# The report is generated in backend/htmlcov/
-# Open backend/htmlcov/index.html in a browser
-```
+- Architecture deep-dive
+- How to write new tests
+- Running tests in Docker
+- Debugging tips
+- Best practices
+- Troubleshooting guide
 
-### Test Configuration
+**See [TESTING.md](TESTING.md) for complete documentation.**
 
-**pytest.ini** - Configure pytest behavior:
-- Test discovery patterns
-- Coverage reporting
-- Test markers (unit, integration, slow)
+### Example: Writing Mode-Agnostic Tests
 
-**.coveragerc** - Configure coverage collection:
-- Source directories
-- Files to omit
-- Report formatting
-
-### Writing New Tests
-
-When adding new API endpoints or modifying existing ones:
-
-1. Add test cases in `tests/test_api.py`
-2. Use existing fixtures from `conftest.py`
-3. Follow the existing test class structure
-4. Include positive and negative test cases
-5. Test edge cases and error conditions
-6. Run tests to verify coverage remains high
-
-Example test structure:
+This test works in both unit and integration modes:
 
 ```python
-class TestNewEndpoint:
-    """Tests for new endpoint"""
+def test_create_and_complete_todo(browser):
+    """Test creating a todo and marking it complete"""
+    page = TodoPage(browser)
+    page.wait_for_page_load()
 
-    def test_success_case(self, client, clean_db):
-        """Test successful operation"""
-        response = client.get('/api/new-endpoint')
-        assert response.status_code == 200
+    # Create todo
+    page.create_todo("Buy groceries", "Milk, eggs, bread")
+    page.wait_for_todo_to_appear("Buy groceries")
 
-    def test_error_case(self, client, clean_db):
-        """Test error handling"""
-        response = client.get('/api/new-endpoint/invalid')
-        assert response.status_code == 404
+    # Verify created
+    todo = page.find_todo_by_title("Buy groceries")
+    assert todo is not None
+    assert todo['completed'] is False
+
+    # Mark complete
+    page.toggle_todo_completion("Buy groceries")
+    page.wait_for_todo_status("Buy groceries", completed=True)
+
+    # Verify completed
+    todo = page.find_todo_by_title("Buy groceries")
+    assert todo['completed'] is True
 ```
 
-### Continuous Integration
-
-The test suite is designed to integrate with CI/CD pipelines:
-
-```bash
-# Run tests in CI environment
-pytest --cov=app --cov-report=xml --cov-report=term -v
-
-# The XML report can be used by coverage services like Codecov
-```
+**No changes needed to run in either mode** - just set `TEST_MODE` environment variable!
 
 ## Troubleshooting
 
@@ -393,11 +486,13 @@ Or change the port in `docker-compose.yaml`.
 ### Database Connection Errors
 
 1. Ensure PostgreSQL is healthy:
+
    ```bash
    docker-compose ps
    ```
 
 2. Check backend logs:
+
    ```bash
    docker-compose logs backend
    ```
@@ -430,12 +525,14 @@ sudo chown -R $USER:$USER .
 For production deployment, consider:
 
 1. **Security**:
+
    - Change default database credentials
    - Enable HTTPS/SSL
    - Implement authentication and authorization
    - Use environment-specific configurations
 
 2. **Performance**:
+
    - Use production builds for React
    - Enable PostgreSQL query optimization
    - Implement caching strategies
@@ -462,6 +559,7 @@ CREATE TABLE todos (
 ## API Response Examples
 
 ### Get All Todos
+
 ```json
 [
   {
@@ -476,6 +574,7 @@ CREATE TABLE todos (
 ```
 
 ### Create Todo
+
 ```json
 {
   "id": 2,
