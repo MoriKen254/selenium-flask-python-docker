@@ -197,9 +197,14 @@ def test_database_persistence(browser):
 
 **Modifying mock behavior**:
 - Edit `tests/mocks/api_interceptor.js`
-- The interceptor intercepts `fetch()` and `XMLHttpRequest.prototype.open()`
-- Mock data stored in closure variable `mockTodos`
-- Available via `window.__TEST_API__.setMockData()`, `getMockData()`, `resetMockData()`, `addMockTodo()`
+- The interceptor intercepts `fetch()` and `XMLHttpRequest` at browser level
+- Mock data stored in `window.__MOCK_TODOS__` (persists across page refreshes)
+- Injected via Chrome DevTools Protocol (CDP) before page load for proper timing
+- Available programmatically via `window.__TEST_API__`:
+  - `setMockData(todos)` - Replace all mock todos (persists across refreshes)
+  - `getMockData()` - Get current mock todos
+  - `resetMockData()` - Reset to default mock data
+  - `addMockTodo(todo)` - Add a single todo to mock store
 
 ## Common Development Tasks
 

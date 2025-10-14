@@ -9,27 +9,47 @@
 
     console.log('[MOCK] Initializing API Interceptor...');
 
-    // Mock data storage
-    let mockTodos = [
-        {
-            id: 1,
-            title: "Mock Todo 1",
-            description: "This is a mocked todo for testing",
-            completed: false,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        },
-        {
-            id: 2,
-            title: "Mock Todo 2",
-            description: "Another mocked todo",
-            completed: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        }
-    ];
+    // Mock data storage - persist across page refreshes via sessionStorage
+    // Check if data exists in sessionStorage first (survives page refresh)
+    const savedData = sessionStorage.getItem('__MOCK_TODOS__');
+    const savedNextId = sessionStorage.getItem('__MOCK_NEXT_ID__');
 
-    let nextId = 3;
+    if (savedData && savedNextId) {
+        console.log('[MOCK] Restoring mock data from sessionStorage');
+        window.__MOCK_TODOS__ = JSON.parse(savedData);
+        window.__MOCK_NEXT_ID__ = parseInt(savedNextId);
+    } else {
+        console.log('[MOCK] Initializing default mock data');
+        window.__MOCK_TODOS__ = [
+            {
+                id: 1,
+                title: "Mock Todo 1",
+                description: "This is a mocked todo for testing",
+                completed: false,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            },
+            {
+                id: 2,
+                title: "Mock Todo 2",
+                description: "Another mocked todo",
+                completed: true,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            }
+        ];
+        window.__MOCK_NEXT_ID__ = 3;
+
+        // Save to sessionStorage
+        sessionStorage.setItem('__MOCK_TODOS__', JSON.stringify(window.__MOCK_TODOS__));
+        sessionStorage.setItem('__MOCK_NEXT_ID__', window.__MOCK_NEXT_ID__.toString());
+    }
+
+    // Helper to sync to sessionStorage after mutations
+    function syncToStorage() {
+        sessionStorage.setItem('__MOCK_TODOS__', JSON.stringify(window.__MOCK_TODOS__));
+        sessionStorage.setItem('__MOCK_NEXT_ID__', window.__MOCK_NEXT_ID__.toString());
+    }
 
     // Mock delay (in milliseconds)
     const mockDelay = window.__MOCK_DELAY__ || 50;
@@ -41,41 +61,44 @@
         // Match route
         if (path === '/api/todos') {
             if (method === 'GET') {
-                return { status: 200, data: [...mockTodos] };
+                return { status: 200, data: [...window.__MOCK_TODOS__] };
             } else if (method === 'POST') {
                 const newTodo = {
-                    id: nextId++,
+                    id: window.__MOCK_NEXT_ID__++,
                     title: body.title || '',
                     description: body.description || '',
                     completed: body.completed || false,
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString()
                 };
-                mockTodos.unshift(newTodo);
+                window.__MOCK_TODOS__.unshift(newTodo);
+                syncToStorage();  // Persist changes
                 return { status: 201, data: newTodo };
             }
         } else if (path.match(/^\/api\/todos\/(\d+)$/)) {
             const id = parseInt(path.match(/^\/api\/todos\/(\d+)$/)[1]);
-            const index = mockTodos.findIndex(t => t.id === id);
+            const index = window.__MOCK_TODOS__.findIndex(t => t.id === id);
 
             if (method === 'GET') {
                 if (index !== -1) {
-                    return { status: 200, data: mockTodos[index] };
+                    return { status: 200, data: window.__MOCK_TODOS__[index] };
                 }
                 return { status: 404, data: { error: 'Todo not found' } };
             } else if (method === 'PUT') {
                 if (index !== -1) {
-                    mockTodos[index] = {
-                        ...mockTodos[index],
+                    window.__MOCK_TODOS__[index] = {
+                        ...window.__MOCK_TODOS__[index],
                         ...body,
                         updated_at: new Date().toISOString()
                     };
-                    return { status: 200, data: mockTodos[index] };
+                    syncToStorage();  // Persist changes
+                    return { status: 200, data: window.__MOCK_TODOS__[index] };
                 }
                 return { status: 404, data: { error: 'Todo not found' } };
             } else if (method === 'DELETE') {
                 if (index !== -1) {
-                    mockTodos.splice(index, 1);
+                    window.__MOCK_TODOS__.splice(index, 1);
+                    syncToStorage();  // Persist changes
                     return { status: 200, data: { message: 'Todo deleted successfully' } };
                 }
                 return { status: 404, data: { error: 'Todo not found' } };
@@ -306,7 +329,7 @@
     // ============================================
     window.__TEST_API__ = {
         resetMockData: function() {
-            mockTodos = [
+            window.__MOCK_TODOS__ = [
                 {
                     id: 1,
                     title: "Mock Todo 1",
@@ -324,28 +347,33 @@
                     updated_at: new Date().toISOString()
                 }
             ];
-            nextId = 3;
+            window.__MOCK_NEXT_ID__ = 3;
+            syncToStorage();  // Persist changes
         },
         setMockData: function(data) {
-            mockTodos = data;
-            nextId = Math.max(...mockTodos.map(t => t.id), 0) + 1;
+            window.__MOCK_TODOS__ = data;
+            window.__MOCK_NEXT_ID__ = window.__MOCK_TODOS__.length > 0
+                ? Math.max(...window.__MOCK_TODOS__.map(t => t.id), 0) + 1
+                : 1;
+            syncToStorage();  // Persist changes
         },
         getMockData: function() {
-            return [...mockTodos];
+            return [...window.__MOCK_TODOS__];
         },
         addMockTodo: function(todo) {
             const newTodo = {
-                id: nextId++,
+                id: window.__MOCK_NEXT_ID__++,
                 ...todo,
                 created_at: todo.created_at || new Date().toISOString(),
                 updated_at: todo.updated_at || new Date().toISOString()
             };
-            mockTodos.push(newTodo);
+            window.__MOCK_TODOS__.push(newTodo);
+            syncToStorage();  // Persist changes
             return newTodo;
         }
     };
 
     window.__API_MOCKING_ENABLED__ = true;
     console.log('[MOCK] API Interceptor loaded successfully');
-    console.log('[MOCK] Mock todos available:', mockTodos.length);
+    console.log('[MOCK] Mock todos available:', window.__MOCK_TODOS__.length);
 })();
