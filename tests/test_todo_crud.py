@@ -57,6 +57,9 @@ class TestTodoCreation:
         page = TodoPage(browser)
         page.wait_for_page_load()
 
+        # Get initial count
+        initial_count = page.get_todo_count()
+
         # Create multiple todos
         todos_to_create = [
             ("Task 1", "First task"),
@@ -66,9 +69,12 @@ class TestTodoCreation:
 
         for title, desc in todos_to_create:
             page.create_todo(title, desc)
+            import time
+            time.sleep(0.3)  # Small delay between creates to avoid race conditions
 
-        # Verify all todos exist
-        page.wait_for_todo_count(len(todos_to_create))
+        # Verify all todos exist - check for expected count
+        expected_count = initial_count + len(todos_to_create)
+        page.wait_for_todo_count(expected_count)
 
         for title, _ in todos_to_create:
             todo = page.find_todo_by_title(title)
@@ -97,13 +103,20 @@ class TestTodoReading:
         Test empty state display
         Note: Uses mock_api fixture to ensure clean state in unit mode
         """
-        if is_unit_mode():
-            mock_api.set_todos([])  # Clear all todos in unit mode
-
         page = TodoPage(browser)
         page.wait_for_page_load()
 
-        # In integration mode, we might need to delete existing todos
+        if is_unit_mode():
+            # Clear all todos in unit mode and refresh to see changes
+            mock_api.set_todos([])
+            browser.refresh()
+            page.wait_for_page_load()
+
+            # Wait for React to render empty state
+            import time
+            time.sleep(0.5)
+
+        # In integration mode, delete existing todos
         if is_integration_mode():
             todos = page.get_all_todos()
             for todo in todos:
@@ -342,6 +355,7 @@ class TestUnitSpecific:
     def test_mock_data_manipulation(self, browser, mock_api):
         """Test manipulating mock data programmatically"""
         page = TodoPage(browser)
+        page.wait_for_page_load()
 
         # Set specific mock data
         custom_todos = [
@@ -349,7 +363,9 @@ class TestUnitSpecific:
                 "id": 999,
                 "title": "Custom mock todo",
                 "description": "Set via mock API",
-                "completed": False
+                "completed": False,
+                "created_at": "2025-01-01T00:00:00.000Z",
+                "updated_at": "2025-01-01T00:00:00.000Z"
             }
         ]
         mock_api.set_todos(custom_todos)
@@ -358,7 +374,11 @@ class TestUnitSpecific:
         browser.refresh()
         page.wait_for_page_load()
 
+        # Wait a bit for React to render
+        import time
+        time.sleep(0.5)
+
         # Verify custom todo appears
         todo = page.find_todo_by_title("Custom mock todo")
-        assert todo is not None
+        assert todo is not None, "Custom mock todo should be found after refresh"
         assert todo['description'] == "Set via mock API"

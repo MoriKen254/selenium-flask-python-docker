@@ -10,7 +10,13 @@
       "Bash(docker run:*)",
       "Bash(cmd /c:*)",
       "Bash(timeout 180 docker build --progress=plain -t todo-tests .)",
-      "Bash(Select-String -Pattern \"(PASSED|FAILED|passed|failed|=====)\")"
+      "Bash(Select-String -Pattern \"(PASSED|FAILED|passed|failed|=====)\")",
+      "Bash(docker-compose exec:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(TEST_MODE=unit pytest:*)",
+      "Bash(set TEST_MODE=unit)",
+      "Bash(pytest:*)",
+      "Bash(docker ps:*)"
     ],
     "deny": [],
     "ask": []
