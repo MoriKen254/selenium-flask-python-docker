@@ -4,6 +4,7 @@ Handles Selenium WebDriver setup with mode-aware API mocking
 """
 import pytest
 import os
+import psycopg2
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
@@ -20,6 +21,33 @@ from config import TestConfig, is_unit_mode
 def print_test_config():
     """Print test configuration at the start of test session"""
     TestConfig.print_config()
+
+
+@pytest.fixture(scope='function', autouse=True)
+def clean_database():
+    """
+    Clean database before each test in integration mode
+    This ensures each test starts with a clean slate
+    """
+    if TestConfig.is_integration_mode():
+        try:
+            conn = psycopg2.connect(
+                host=TestConfig.DB_HOST,
+                port=TestConfig.DB_PORT,
+                dbname=TestConfig.DB_NAME,
+                user=TestConfig.DB_USER,
+                password=TestConfig.DB_PASSWORD
+            )
+            cursor = conn.cursor()
+            cursor.execute("TRUNCATE TABLE todos RESTART IDENTITY CASCADE;")
+            conn.commit()
+            cursor.close()
+            conn.close()
+            print("[TEST] Database cleaned before test")
+        except Exception as e:
+            print(f"[TEST] Warning: Could not clean database: {e}")
+
+    yield
 
 
 @pytest.fixture(scope='function')
@@ -72,7 +100,12 @@ def driver(request):
         options.add_argument('--width=1920')
         options.add_argument('--height=1080')
 
-        service = FirefoxService(GeckoDriverManager().install())
+        # Use pre-installed geckodriver if available, otherwise use webdriver-manager
+        geckodriver_path = '/usr/local/bin/geckodriver'
+        if os.path.exists(geckodriver_path):
+            service = FirefoxService(geckodriver_path)
+        else:
+            service = FirefoxService(GeckoDriverManager().install())
         web_driver = webdriver.Firefox(service=service, options=options)
 
     else:

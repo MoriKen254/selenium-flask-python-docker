@@ -52,11 +52,16 @@ docker run --rm ^
     -e TEST_MODE=integration ^
     -e FRONTEND_URL=http://frontend:3000 ^
     -e BACKEND_URL=http://backend:5000 ^
-    -e BROWSER=chrome ^
+    -e DB_HOST=todo_postgres ^
+    -e DB_PORT=5432 ^
+    -e POSTGRES_DB=tododb ^
+    -e POSTGRES_USER=todouser ^
+    -e POSTGRES_PASSWORD=todopass ^
+    -e BROWSER=firefox ^
     -e HEADLESS=true ^
     -v "%cd%/test_reports:/tests/test_reports" ^
     -v "%cd%/test_screenshots:/tests/test_screenshots" ^
-    todo-tests python -m pytest -v --html=test_reports/integration_report.html --self-contained-html
+    todo-tests python -m pytest test_todo_crud.py -v --html=test_reports/integration_report.html --self-contained-html
 
 set EXIT_CODE=%ERRORLEVEL%
 

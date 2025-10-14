@@ -36,7 +36,8 @@
       "Bash(set BROWSER=chrome)",
       "Bash(set HEADLESS=true)",
       "Bash(timeout 30 python -m pytest test_todo_crud.py::TestTodoCreation::test_create_todo_with_title_only -v -s)",
-      "Bash(bash run_integration_tests.sh test_todo_crud.py::TestTodoCreation::test_create_todo_with_title_only)"
+      "Bash(bash run_integration_tests.sh test_todo_crud.py::TestTodoCreation::test_create_todo_with_title_only)",
+      "Bash(timeout 180 docker run --rm --network selenium-flask-python-docker_todo_network -e TEST_MODE=integration -e FRONTEND_URL=http://frontend:3000 -e BACKEND_URL=http://backend:5000 -e BROWSER=firefox -e HEADLESS=true todo-tests python -m pytest test_todo_crud.py::TestTodoCreation::test_create_todo_with_title_only -v -s)"
     ],
     "deny": [],
     "ask": []
