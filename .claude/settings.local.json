@@ -7,7 +7,9 @@
       "Bash(docker network:*)",
       "Bash(docker-compose ps:*)",
       "Bash(powershell.exe:*)",
-      "Bash(docker run:*)"
+      "Bash(docker run:*)",
+      "Bash(cmd /c:*)",
+      "Bash(timeout 180 docker build --progress=plain -t todo-tests .)"
     ],
     "deny": [],
     "ask": []
