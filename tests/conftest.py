@@ -37,6 +37,12 @@ def driver(request):
         options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--disable-gpu')
         options.add_argument('--window-size=1920,1080')
+        # Reduce resource usage to prevent hangs
+        options.add_argument('--disable-extensions')
+        options.add_argument('--disable-software-rasterizer')
+        options.add_argument('--disable-background-networking')
+        options.add_argument('--disable-default-apps')
+        options.add_argument('--disable-sync')
 
         # Get chromedriver path and ensure we use the actual binary, not THIRD_PARTY_NOTICES
         driver_path = ChromeDriverManager().install()

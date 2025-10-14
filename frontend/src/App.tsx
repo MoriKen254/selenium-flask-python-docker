@@ -3,9 +3,21 @@ import axios, { AxiosError } from 'axios';
 import './App.css';
 import { Todo, NewTodo, UpdateTodo } from './types/todo';
 
-const API_URL: string = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+// Use runtime configuration if available, fall back to build-time env var, then default
+declare global {
+  interface Window {
+    __API_URL__?: string;
+  }
+}
 
 const App: React.FC = () => {
+  // Evaluate API_URL at runtime using dynamic property access to prevent webpack optimization
+  const API_URL: string = React.useMemo(() => {
+    const runtimeApiUrl = (window as any)['__API_URL__'];
+    const buildTimeApiUrl = process.env.REACT_APP_API_URL;
+    return runtimeApiUrl || buildTimeApiUrl || 'http://localhost:5000';
+  }, []);
+
   const [todos, setTodos] = useState<Todo[]>([]);
   const [newTodo, setNewTodo] = useState<NewTodo>({ title: '', description: '' });
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
