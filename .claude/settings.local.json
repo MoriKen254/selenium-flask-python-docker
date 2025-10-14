@@ -9,7 +9,8 @@
       "Bash(powershell.exe:*)",
       "Bash(docker run:*)",
       "Bash(cmd /c:*)",
-      "Bash(timeout 180 docker build --progress=plain -t todo-tests .)"
+      "Bash(timeout 180 docker build --progress=plain -t todo-tests .)",
+      "Bash(Select-String -Pattern \"(PASSED|FAILED|passed|failed|=====)\")"
     ],
     "deny": [],
     "ask": []

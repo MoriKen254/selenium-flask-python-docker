@@ -1,11 +1,13 @@
 /**
  * API Interceptor for Unit Testing
- * This script is injected into the browser to intercept and mock API calls
- * Only active when TEST_MODE=unit
+ * This script intercepts and mocks API calls for testing without a backend
+ * Uses synchronous mocking to avoid timing issues
  */
 
 (function() {
     'use strict';
+
+    console.log('[MOCK] Initializing API Interceptor...');
 
     // Mock data storage
     let mockTodos = [
@@ -29,18 +31,18 @@
 
     let nextId = 3;
 
-    // Helper to simulate network delay
-    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+    // Mock delay (in milliseconds)
+    const mockDelay = window.__MOCK_DELAY__ || 50;
 
-    // Mock API responses
-    const mockResponses = {
-        '/api/todos': {
-            GET: async () => {
-                await delay(window.__MOCK_DELAY__ || 100);
+    // Process mock request and return result
+    function processMockRequest(method, path, body) {
+        console.log(`[MOCK] ${method} ${path}`);
+
+        // Match route
+        if (path === '/api/todos') {
+            if (method === 'GET') {
                 return { status: 200, data: [...mockTodos] };
-            },
-            POST: async (body) => {
-                await delay(window.__MOCK_DELAY__ || 100);
+            } else if (method === 'POST') {
                 const newTodo = {
                     id: nextId++,
                     title: body.title || '',
@@ -52,19 +54,16 @@
                 mockTodos.unshift(newTodo);
                 return { status: 201, data: newTodo };
             }
-        },
-        '/api/todos/:id': {
-            GET: async (id) => {
-                await delay(window.__MOCK_DELAY__ || 100);
-                const todo = mockTodos.find(t => t.id === parseInt(id));
-                if (todo) {
-                    return { status: 200, data: todo };
+        } else if (path.match(/^\/api\/todos\/(\d+)$/)) {
+            const id = parseInt(path.match(/^\/api\/todos\/(\d+)$/)[1]);
+            const index = mockTodos.findIndex(t => t.id === id);
+
+            if (method === 'GET') {
+                if (index !== -1) {
+                    return { status: 200, data: mockTodos[index] };
                 }
                 return { status: 404, data: { error: 'Todo not found' } };
-            },
-            PUT: async (id, body) => {
-                await delay(window.__MOCK_DELAY__ || 100);
-                const index = mockTodos.findIndex(t => t.id === parseInt(id));
+            } else if (method === 'PUT') {
                 if (index !== -1) {
                     mockTodos[index] = {
                         ...mockTodos[index],
@@ -74,185 +73,237 @@
                     return { status: 200, data: mockTodos[index] };
                 }
                 return { status: 404, data: { error: 'Todo not found' } };
-            },
-            DELETE: async (id) => {
-                await delay(window.__MOCK_DELAY__ || 100);
-                const index = mockTodos.findIndex(t => t.id === parseInt(id));
+            } else if (method === 'DELETE') {
                 if (index !== -1) {
                     mockTodos.splice(index, 1);
                     return { status: 200, data: { message: 'Todo deleted successfully' } };
                 }
                 return { status: 404, data: { error: 'Todo not found' } };
             }
-        },
-        '/health': {
-            GET: async () => {
-                await delay(window.__MOCK_DELAY__ || 100);
+        } else if (path === '/health') {
+            if (method === 'GET') {
                 return { status: 200, data: { status: 'healthy', database: 'mocked' } };
             }
         }
-    };
 
-    // Helper to match URL patterns
-    function matchRoute(url) {
-        for (const [pattern, methods] of Object.entries(mockResponses)) {
-            const regex = new RegExp('^' + pattern.replace(':id', '(\\d+)') + '$');
-            const match = url.match(regex);
-            if (match) {
-                return { methods, params: match.slice(1) };
-            }
-        }
+        // Not mocked
         return null;
     }
 
-    // Store original fetch
-    const originalFetch = window.fetch;
-
-    // Override fetch
-    window.fetch = async function(url, options = {}) {
-        // Extract the path from the URL
-        let path = url;
+    // Extract path from URL
+    function extractPath(url) {
         if (url.startsWith('http')) {
             try {
-                const urlObj = new URL(url);
-                path = urlObj.pathname;
+                return new URL(url).pathname;
             } catch (e) {
-                path = url;
+                return url;
             }
         }
+        return url;
+    }
 
-        // Check if this is an API call we should mock
-        const route = matchRoute(path);
-
-        if (route && window.__API_MOCKING_ENABLED__) {
-            const method = options.method || 'GET';
-            const handler = route.methods[method];
-
-            if (handler) {
-                console.log(`[MOCK] Intercepting ${method} ${path}`);
-
-                try {
-                    let result;
-                    if (method === 'GET') {
-                        result = await handler(...route.params);
-                    } else if (method === 'POST' || method === 'PUT') {
-                        const body = options.body ? JSON.parse(options.body) : {};
-                        result = await handler(...route.params, body);
-                    } else if (method === 'DELETE') {
-                        result = await handler(...route.params);
-                    }
-
-                    // Return a mock Response object
-                    return {
-                        ok: result.status >= 200 && result.status < 300,
-                        status: result.status,
-                        statusText: result.status === 200 ? 'OK' : 'Error',
-                        headers: new Headers({ 'Content-Type': 'application/json' }),
-                        json: async () => result.data,
-                        text: async () => JSON.stringify(result.data),
-                        clone: function() { return this; }
-                    };
-                } catch (error) {
-                    console.error('[MOCK] Error handling request:', error);
-                    return {
-                        ok: false,
-                        status: 500,
-                        statusText: 'Internal Server Error',
-                        json: async () => ({ error: error.message })
-                    };
-                }
-            }
-        }
-
-        // If not mocked, use original fetch
-        return originalFetch.call(this, url, options);
-    };
-
-    // Store original XMLHttpRequest
+    // ============================================
+    // INTERCEPT XMLHttpRequest (used by Axios)
+    // ============================================
     const OriginalXHR = window.XMLHttpRequest;
 
-    // Override XMLHttpRequest for axios compatibility
     window.XMLHttpRequest = function() {
         const xhr = new OriginalXHR();
-        const originalOpen = xhr.open;
-        const originalSend = xhr.send;
-
         let method, url;
 
-        xhr.open = function(m, u, ...args) {
-            method = m;
-            url = u;
-            return originalOpen.apply(this, [m, u, ...args]);
+        const originalOpen = xhr.open;
+        const originalSend = xhr.send;
+        const originalSetRequestHeader = xhr.setRequestHeader;
+
+        let requestHeaders = {};
+
+        xhr.setRequestHeader = function(name, value) {
+            requestHeaders[name] = value;
+            return originalSetRequestHeader.apply(this, arguments);
         };
 
-        xhr.send = async function(body) {
-            // Extract path from URL
-            let path = url;
-            if (url.startsWith('http')) {
-                try {
-                    const urlObj = new URL(url);
-                    path = urlObj.pathname;
-                } catch (e) {
-                    path = url;
-                }
-            }
+        xhr.open = function(m, u) {
+            method = m;
+            url = u;
+            return originalOpen.apply(this, arguments);
+        };
 
-            const route = matchRoute(path);
+        xhr.send = function(body) {
+            const path = extractPath(url);
+            const mockResult = processMockRequest(method, path, body ? JSON.parse(body) : {});
 
-            if (route && window.__API_MOCKING_ENABLED__) {
-                const handler = route.methods[method];
+            if (mockResult) {
+                // Mock the response
+                console.log(`[MOCK] Returning mocked response for ${method} ${path}`);
 
-                if (handler) {
-                    console.log(`[MOCK] Intercepting XHR ${method} ${path}`);
-
+                // Simulate async behavior with setTimeout
+                setTimeout(() => {
                     try {
-                        let result;
-                        if (method === 'GET') {
-                            result = await handler(...route.params);
-                        } else if (method === 'POST' || method === 'PUT') {
-                            const parsedBody = body ? JSON.parse(body) : {};
-                            result = await handler(...route.params, parsedBody);
-                        } else if (method === 'DELETE') {
-                            result = await handler(...route.params);
-                        }
-
-                        // Simulate successful XHR response
-                        Object.defineProperty(xhr, 'status', { value: result.status, writable: false });
-                        Object.defineProperty(xhr, 'statusText', {
-                            value: result.status === 200 ? 'OK' : 'Error',
-                            writable: false
+                        // Set readyState to 4 (DONE) first
+                        Object.defineProperty(xhr, 'readyState', {
+                            writable: true,
+                            configurable: true,
+                            value: 4
                         });
+
+                        // Set status
+                        Object.defineProperty(xhr, 'status', {
+                            writable: true,
+                            configurable: true,
+                            value: mockResult.status
+                        });
+
+                        // Set statusText
+                        Object.defineProperty(xhr, 'statusText', {
+                            writable: true,
+                            configurable: true,
+                            value: mockResult.status >= 200 && mockResult.status < 300 ? 'OK' : 'Error'
+                        });
+
+                        // Set response and responseText
+                        const responseData = JSON.stringify(mockResult.data);
                         Object.defineProperty(xhr, 'response', {
-                            value: JSON.stringify(result.data),
-                            writable: false
+                            writable: true,
+                            configurable: true,
+                            value: responseData
                         });
                         Object.defineProperty(xhr, 'responseText', {
-                            value: JSON.stringify(result.data),
-                            writable: false
+                            writable: true,
+                            configurable: true,
+                            value: responseData
                         });
-                        Object.defineProperty(xhr, 'readyState', { value: 4, writable: false });
 
-                        // Trigger events
-                        setTimeout(() => {
-                            if (xhr.onreadystatechange) xhr.onreadystatechange();
-                            if (xhr.onload) xhr.onload();
-                        }, 0);
+                        // Set responseType
+                        Object.defineProperty(xhr, 'responseType', {
+                            writable: true,
+                            configurable: true,
+                            value: ''
+                        });
 
-                        return;
-                    } catch (error) {
-                        console.error('[MOCK] Error handling XHR request:', error);
+                        // Set responseURL
+                        Object.defineProperty(xhr, 'responseURL', {
+                            writable: true,
+                            configurable: true,
+                            value: url
+                        });
+
+                        // Override header methods
+                        xhr.getAllResponseHeaders = () => 'content-type: application/json\r\n';
+                        xhr.getResponseHeader = (name) => {
+                            if (name.toLowerCase() === 'content-type') {
+                                return 'application/json';
+                            }
+                            return null;
+                        };
+
+                        // Create and dispatch events
+                        const loadEvent = new ProgressEvent('load', {
+                            lengthComputable: false,
+                            loaded: 0,
+                            total: 0
+                        });
+
+                        const loadEndEvent = new ProgressEvent('loadend', {
+                            lengthComputable: false,
+                            loaded: 0,
+                            total: 0
+                        });
+
+                        // Trigger readystatechange event
+                        if (xhr.onreadystatechange) {
+                            xhr.onreadystatechange.call(xhr);
+                        }
+
+                        // Trigger load event
+                        if (mockResult.status >= 200 && mockResult.status < 300) {
+                            if (xhr.onload) {
+                                xhr.onload.call(xhr, loadEvent);
+                            }
+                            // Dispatch load event for addEventListener
+                            if (xhr.dispatchEvent) {
+                                xhr.dispatchEvent(loadEvent);
+                            }
+                        } else {
+                            // Trigger error for non-2xx responses
+                            const errorEvent = new ProgressEvent('error');
+                            if (xhr.onerror) {
+                                xhr.onerror.call(xhr, errorEvent);
+                            }
+                            if (xhr.dispatchEvent) {
+                                xhr.dispatchEvent(errorEvent);
+                            }
+                        }
+
+                        // Trigger loadend event
+                        if (xhr.onloadend) {
+                            xhr.onloadend.call(xhr, loadEndEvent);
+                        }
+                        if (xhr.dispatchEvent) {
+                            xhr.dispatchEvent(loadEndEvent);
+                        }
+                    } catch (e) {
+                        console.error('[MOCK] Error setting up XHR response:', e);
                     }
-                }
+                }, mockDelay);
+
+                return;
             }
 
-            // If not mocked, use original send
-            return originalSend.apply(this, [body]);
+            // Not mocked, use real XHR
+            return originalSend.apply(this, arguments);
         };
 
         return xhr;
     };
 
-    // Expose API for tests to manipulate mock data
+    // Copy static properties
+    for (const prop in OriginalXHR) {
+        if (OriginalXHR.hasOwnProperty(prop)) {
+            try {
+                window.XMLHttpRequest[prop] = OriginalXHR[prop];
+            } catch (e) {
+                // Ignore read-only properties
+            }
+        }
+    }
+
+    // ============================================
+    // INTERCEPT fetch API (backup)
+    // ============================================
+    const originalFetch = window.fetch;
+
+    window.fetch = function(url, options = {}) {
+        const path = extractPath(url);
+        const method = options.method || 'GET';
+        const body = options.body ? JSON.parse(options.body) : {};
+
+        const mockResult = processMockRequest(method, path, body);
+
+        if (mockResult) {
+            console.log(`[MOCK] Returning mocked fetch response for ${method} ${path}`);
+
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    resolve({
+                        ok: mockResult.status >= 200 && mockResult.status < 300,
+                        status: mockResult.status,
+                        statusText: mockResult.status >= 200 && mockResult.status < 300 ? 'OK' : 'Error',
+                        headers: new Headers({ 'Content-Type': 'application/json' }),
+                        json: async () => mockResult.data,
+                        text: async () => JSON.stringify(mockResult.data),
+                        clone: function() { return this; }
+                    });
+                }, mockDelay);
+            });
+        }
+
+        // Not mocked, use real fetch
+        return originalFetch.apply(this, arguments);
+    };
+
+    // ============================================
+    // Test API for programmatic control
+    // ============================================
     window.__TEST_API__ = {
         resetMockData: function() {
             mockTodos = [
@@ -294,6 +345,7 @@
         }
     };
 
-    console.log('[MOCK] API Interceptor loaded and active');
     window.__API_MOCKING_ENABLED__ = true;
+    console.log('[MOCK] API Interceptor loaded successfully');
+    console.log('[MOCK] Mock todos available:', mockTodos.length);
 })();
