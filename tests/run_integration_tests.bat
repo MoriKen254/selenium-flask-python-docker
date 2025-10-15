@@ -52,7 +52,7 @@ docker run --rm ^
     -e TEST_MODE=integration ^
     -e FRONTEND_URL=http://frontend:3000 ^
     -e BACKEND_URL=http://backend:5000 ^
-    -e DB_HOST=todo_postgres ^
+    -e DB_HOST=postgres ^
     -e DB_PORT=5432 ^
     -e POSTGRES_DB=tododb ^
     -e POSTGRES_USER=todouser ^

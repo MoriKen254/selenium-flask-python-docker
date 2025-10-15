@@ -219,3 +219,10 @@ build/
 # Database volumes
 postgres_data/
 cloudbeaver_data/
+
+# Test resources
+nul
+test_reports/
+test_screenshots/
+tests/test_reports/
+tests/test_screenshots/

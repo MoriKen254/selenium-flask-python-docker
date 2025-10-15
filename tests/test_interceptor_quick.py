@@ -1,6 +1,9 @@
 """Quick test to verify API interceptor works"""
 import pytest
 from pages.todo_page import TodoPage
+from config import is_unit_mode
+
+pytestmark = pytest.mark.skipif(not is_unit_mode(), reason="Only runs in unit mode")
 
 
 def test_interceptor_loads_mock_data(browser):

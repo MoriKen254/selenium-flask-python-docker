@@ -1,6 +1,9 @@
 """Debug test to check console logs"""
 import pytest
 import time
+from config import is_unit_mode
+
+pytestmark = pytest.mark.skipif(not is_unit_mode(), reason="Only runs in unit mode")
 
 
 def test_check_console_logs(browser):

@@ -14,13 +14,18 @@
         // Check if mock mode is enabled via query parameter
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('mock') === 'true') {
-          console.log('[INDEX] Mock mode enabled - will load API interceptor');
+          console.log('[INDEX] Mock mode enabled - loading API interceptor');
           window.__ENABLE_API_MOCKING__ = true;
           window.__MOCK_DELAY__ = 50;
+
+          // Dynamically load the interceptor script
+          const script = document.createElement('script');
+          script.src = '/api_interceptor.js';
+          script.async = false; // Load synchronously to ensure it's ready before React
+          document.head.appendChild(script);
         }
       })();
     </script>
-    <script src="%PUBLIC_URL%/api_interceptor.js"></script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>

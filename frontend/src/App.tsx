@@ -1,5 +1,4 @@
 import React, { useState, useEffect, FormEvent, ChangeEvent } from 'react';
-import axios, { AxiosError } from 'axios';
 import './App.css';
 import { Todo, NewTodo, UpdateTodo } from './types/todo';
 
@@ -33,10 +32,14 @@ const App: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get<Todo[]>(`${API_URL}/api/todos`);
-      setTodos(response.data);
+      const response = await fetch(`${API_URL}/api/todos`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setTodos(data);
     } catch (err) {
-      const errorMessage = err instanceof AxiosError
+      const errorMessage = err instanceof Error
         ? err.message
         : 'An unknown error occurred';
       setError('Failed to fetch todos. Please make sure the backend is running.');
@@ -56,12 +59,22 @@ const App: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post<Todo>(`${API_URL}/api/todos`, newTodo);
-      setTodos([response.data, ...todos]);
+      const response = await fetch(`${API_URL}/api/todos`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newTodo),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setTodos([data, ...todos]);
       setNewTodo({ title: '', description: '' });
       setError(null);
     } catch (err) {
-      const errorMessage = err instanceof AxiosError
+      const errorMessage = err instanceof Error
         ? err.message
         : 'An unknown error occurred';
       setError('Failed to create todo');
@@ -75,12 +88,22 @@ const App: React.FC = () => {
   const handleUpdateTodo = async (id: number, updates: UpdateTodo): Promise<void> => {
     setLoading(true);
     try {
-      const response = await axios.put<Todo>(`${API_URL}/api/todos/${id}`, updates);
-      setTodos(todos.map(todo => todo.id === id ? response.data : todo));
+      const response = await fetch(`${API_URL}/api/todos/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setTodos(todos.map(todo => todo.id === id ? data : todo));
       setEditingTodo(null);
       setError(null);
     } catch (err) {
-      const errorMessage = err instanceof AxiosError
+      const errorMessage = err instanceof Error
         ? err.message
         : 'An unknown error occurred';
       setError('Failed to update todo');
@@ -103,11 +126,16 @@ const App: React.FC = () => {
 
     setLoading(true);
     try {
-      await axios.delete(`${API_URL}/api/todos/${id}`);
+      const response = await fetch(`${API_URL}/api/todos/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       setTodos(todos.filter(todo => todo.id !== id));
       setError(null);
     } catch (err) {
-      const errorMessage = err instanceof AxiosError
+      const errorMessage = err instanceof Error
         ? err.message
         : 'An unknown error occurred';
       setError('Failed to delete todo');

@@ -160,6 +160,10 @@ def browser(driver):
         print("[TEST] Running in INTEGRATION mode - using real backend")
         driver.get(TestConfig.FRONTEND_URL)
 
+        # Wait for React to mount and make initial fetch
+        import time
+        time.sleep(2)
+
     return driver
 
 

@@ -45,7 +45,20 @@
       "Bash(docker restart:*)",
       "Bash(docker start:*)",
       "Bash(Select-String -Pattern \"(passed|failed|skipped|ERROR|Backend|Unit Tests)\")",
-      "Bash(Select-Object -Last 20)"
+      "Bash(Select-Object -Last 20)",
+      "Bash(run_integration_tests.bat)",
+      "Bash(testsrun_integration_tests.bat)",
+      "Bash(call testsrun_integration_tests.bat)",
+      "Bash(Select-String -Pattern \"(passed|failed|skipped|ERROR|PASSED|FAILED|SKIPPED|test_)\")",
+      "Bash(Select-Object -Last 30)",
+      "Bash(docker logs:*)",
+      "Bash(timeout:*)",
+      "Bash(Select-String -Pattern \"(passed|failed|ERROR|Backend|Integration)\")",
+      "Read(//c/tmp/**)",
+      "Bash(cat:*)",
+      "Bash(docker inspect:*)",
+      "Bash(Select-String -Pattern \"(Name|IPv4Address)\" -Context 1)",
+      "Bash(call tests/run_integration_tests.bat)"
     ],
     "deny": [],
     "ask": []
