@@ -1,3 +1,13 @@
+/**
+ * Todo List Application - Main Component
+ *
+ * A full-stack todo list application built with React, TypeScript, Flask, and PostgreSQL.
+ * This component provides a complete CRUD interface for managing todo items with real-time
+ * updates and error handling.
+ *
+ * @module App
+ */
+
 import React, { useState, useEffect, FormEvent, ChangeEvent } from 'react';
 import './App.css';
 import { Todo, NewTodo, UpdateTodo } from './types/todo';
@@ -5,29 +15,71 @@ import { Todo, NewTodo, UpdateTodo } from './types/todo';
 // Use runtime configuration if available, fall back to build-time env var, then default
 declare global {
   interface Window {
+    /** Runtime API URL configuration injected by config.js */
     __API_URL__?: string;
   }
 }
 
+/**
+ * Main application component for the Todo List.
+ *
+ * Manages the complete todo lifecycle including creation, reading, updating, and deletion.
+ * Uses dynamic API URL configuration to support both development and Docker environments.
+ *
+ * @component
+ * @returns {React.FC} The rendered todo list application
+ *
+ * @example
+ * ```tsx
+ * import App from './App';
+ *
+ * function Root() {
+ *   return <App />;
+ * }
+ * ```
+ */
 const App: React.FC = () => {
-  // Evaluate API_URL at runtime using dynamic property access to prevent webpack optimization
+  /**
+   * API URL determined at runtime from window.__API_URL__, environment variable, or default.
+   * This allows the same build to work in different environments (localhost, Docker, etc.)
+   */
   const API_URL: string = React.useMemo(() => {
     const runtimeApiUrl = (window as any)['__API_URL__'];
     const buildTimeApiUrl = process.env.REACT_APP_API_URL;
     return runtimeApiUrl || buildTimeApiUrl || 'http://localhost:5000';
   }, []);
 
+  /** Array of all todos */
   const [todos, setTodos] = useState<Todo[]>([]);
+
+  /** Data for new todo being created */
   const [newTodo, setNewTodo] = useState<NewTodo>({ title: '', description: '' });
+
+  /** Todo currently being edited, or null if none */
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
+
+  /** Loading state for async operations */
   const [loading, setLoading] = useState<boolean>(false);
+
+  /** Error message to display, or null if no error */
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch all todos
+  // Fetch all todos on component mount
   useEffect(() => {
     fetchTodos();
   }, []);
 
+  /**
+   * Fetches all todos from the backend API.
+   *
+   * Updates the todos state with the fetched data or sets an error message if the request fails.
+   * Sets loading state during the fetch operation.
+   *
+   * @async
+   * @function fetchTodos
+   * @returns {Promise<void>}
+   * @throws {Error} If the API request fails
+   */
   const fetchTodos = async (): Promise<void> => {
     setLoading(true);
     setError(null);
@@ -49,7 +101,17 @@ const App: React.FC = () => {
     }
   };
 
-  // Create a new todo
+  /**
+   * Creates a new todo item by submitting the form.
+   *
+   * Validates that a title is provided, sends a POST request to the API,
+   * and updates the local state with the new todo.
+   *
+   * @async
+   * @function handleCreateTodo
+   * @param {FormEvent<HTMLFormElement>} e - The form submission event
+   * @returns {Promise<void>}
+   */
   const handleCreateTodo = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     if (!newTodo.title.trim()) {
@@ -84,7 +146,17 @@ const App: React.FC = () => {
     }
   };
 
-  // Update a todo
+  /**
+   * Updates an existing todo with partial or full data.
+   *
+   * Sends a PUT request to update the todo and refreshes the local state.
+   *
+   * @async
+   * @function handleUpdateTodo
+   * @param {number} id - The ID of the todo to update
+   * @param {UpdateTodo} updates - Object containing fields to update
+   * @returns {Promise<void>}
+   */
   const handleUpdateTodo = async (id: number, updates: UpdateTodo): Promise<void> => {
     setLoading(true);
     try {
@@ -113,12 +185,28 @@ const App: React.FC = () => {
     }
   };
 
-  // Toggle todo completion
+  /**
+   * Toggles the completion status of a todo.
+   *
+   * @async
+   * @function handleToggleComplete
+   * @param {Todo} todo - The todo to toggle
+   * @returns {Promise<void>}
+   */
   const handleToggleComplete = async (todo: Todo): Promise<void> => {
     await handleUpdateTodo(todo.id, { completed: !todo.completed });
   };
 
-  // Delete a todo
+  /**
+   * Deletes a todo after user confirmation.
+   *
+   * Shows a confirmation dialog before permanently deleting the todo.
+   *
+   * @async
+   * @function handleDeleteTodo
+   * @param {number} id - The ID of the todo to delete
+   * @returns {Promise<void>}
+   */
   const handleDeleteTodo = async (id: number): Promise<void> => {
     if (!window.confirm('Are you sure you want to delete this todo?')) {
       return;

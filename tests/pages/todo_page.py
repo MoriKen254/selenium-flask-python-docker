@@ -1,7 +1,14 @@
-"""
-Page Object Model for Todo List Application
-Provides reusable methods for interacting with the UI
-Works in both unit and integration modes
+"""Page Object Model for Todo List Application.
+
+This module provides a Page Object Model implementation for the Todo List application.
+It encapsulates all UI interactions and works seamlessly in both unit (mocked APIs) and
+integration (real backend) testing modes.
+
+The page object provides methods for:
+    - Creating, reading, updating, and deleting todos
+    - Verifying UI state and error messages
+    - Waiting for dynamic content changes
+    - Handling browser alerts and confirmations
 """
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -11,9 +18,40 @@ from typing import List, Dict, Optional
 
 
 class TodoPage:
-    """
-    Page Object for the Todo List main page
-    Encapsulates all UI interactions in a reusable way
+    """Page Object for the Todo List main page.
+
+    This class encapsulates all interactions with the todo list UI using the Page Object
+    Model pattern. It provides high-level methods for test scenarios and handles element
+    location, waiting, and error recovery automatically.
+
+    Attributes:
+        driver: Selenium WebDriver instance for browser control.
+        wait: WebDriverWait instance with 10-second default timeout.
+        TITLE_INPUT: Locator for todo title input field.
+        DESCRIPTION_TEXTAREA: Locator for todo description textarea.
+        ADD_BUTTON: Locator for add todo submit button.
+        TODO_ITEMS: Locator for all todo item containers.
+        TODO_TITLE: Locator for todo title text.
+        TODO_DESCRIPTION: Locator for todo description text.
+        TODO_CHECKBOX: Locator for completion checkbox.
+        EDIT_BUTTON: Locator for edit button.
+        DELETE_BUTTON: Locator for delete button.
+        SAVE_BUTTON: Locator for save button in edit mode.
+        CANCEL_BUTTON: Locator for cancel button in edit mode.
+        ERROR_MESSAGE: Locator for error message display.
+        LOADING_INDICATOR: Locator for loading indicator.
+        EMPTY_STATE: Locator for empty state message.
+        STATS: Locator for statistics display.
+        COMPLETED_TODO: Locator for completed todo items.
+
+    Example:
+        >>> from selenium import webdriver
+        >>> driver = webdriver.Firefox()
+        >>> page = TodoPage(driver)
+        >>> page.create_todo("Buy groceries", "Milk and eggs")
+        >>> page.wait_for_todo_to_appear("Buy groceries")
+        >>> todos = page.get_all_todos()
+        >>> assert len(todos) == 1
     """
 
     # Locators
@@ -35,6 +73,11 @@ class TodoPage:
     COMPLETED_TODO = (By.CSS_SELECTOR, ".todo-item.completed")
 
     def __init__(self, driver):
+        """Initialize the TodoPage with a WebDriver instance.
+
+        Args:
+            driver: Selenium WebDriver instance (Firefox, Chrome, etc.)
+        """
         self.driver = driver
         self.wait = WebDriverWait(driver, 10)
 
