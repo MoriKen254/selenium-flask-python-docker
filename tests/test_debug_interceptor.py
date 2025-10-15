@@ -20,12 +20,6 @@ def test_check_interceptor_loaded(browser):
         mock_data = browser.execute_script("return window.__TEST_API__.getMockData();")
         print(f"Mock data: {mock_data}")
 
-    # Check console logs
-    logs = browser.get_log('browser')
-    print("\n=== Browser Console Logs ===")
-    for log in logs:
-        print(f"[{log['level']}] {log['message']}")
-
     # Try to manually trigger a fetch
     print("\n=== Testing Manual Fetch ===")
     result = browser.execute_script("""

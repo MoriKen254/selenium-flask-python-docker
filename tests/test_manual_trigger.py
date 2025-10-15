@@ -39,10 +39,11 @@ def test_manual_api_call(browser):
 
     print(f"Manual fetch result: {fetch_result}")
 
-    # Check console logs again
-    logs = browser.get_log('browser')
-    print("\n=== Console logs after manual calls ===")
-    for log in logs:
-        print(f"[{log['level']}] {log['message']}")
+    # Verify the manual calls returned mock data
+    assert result.get('status') == 200, "XHR call should succeed with status 200"
+    assert 'Mock Todo' in result.get('responseText', ''), "XHR response should contain mock data"
 
-    assert True  # Just for debugging
+    assert fetch_result.get('success') is True, "Fetch call should succeed"
+    assert 'Mock Todo' in fetch_result.get('text', ''), "Fetch response should contain mock data"
+
+    print("\n✓ All manual API calls returned mocked data successfully!")
