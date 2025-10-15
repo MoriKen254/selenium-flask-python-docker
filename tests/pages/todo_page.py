@@ -183,24 +183,40 @@ class TodoPage:
 
     def delete_todo(self, todo_title: str):
         """Delete a todo (handles confirmation dialog)"""
-        todo = self.find_todo_by_title(todo_title)
-        if not todo:
-            raise ValueError(f"Todo with title '{todo_title}' not found")
-
-        # Click delete button
-        delete_btn = todo['element'].find_element(*self.DELETE_BUTTON)
-        delete_btn.click()
-
-        # Handle browser confirmation dialog
         import time
-        time.sleep(0.2)
-        try:
-            alert = self.driver.switch_to.alert
-            alert.accept()
-            time.sleep(0.5)  # Wait for deletion to complete
-        except:
-            # If no alert (or already handled), continue
-            pass
+        from selenium.common.exceptions import StaleElementReferenceException
+
+        # Retry logic for stale elements
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                todo = self.find_todo_by_title(todo_title)
+                if not todo:
+                    raise ValueError(f"Todo with title '{todo_title}' not found")
+
+                # Click delete button
+                delete_btn = todo['element'].find_element(*self.DELETE_BUTTON)
+                delete_btn.click()
+
+                # Handle browser confirmation dialog
+                time.sleep(0.3)  # Wait for alert to appear
+                try:
+                    alert = self.driver.switch_to.alert
+                    alert.accept()
+                    time.sleep(1)  # Wait longer for deletion to complete
+                except:
+                    # If no alert (or already handled), continue
+                    pass
+
+                # Successfully clicked and handled dialog, break retry loop
+                break
+
+            except StaleElementReferenceException:
+                if attempt == max_retries - 1:
+                    raise
+                print(f"[DELETE] Stale element, retrying... (attempt {attempt + 1})")
+                time.sleep(0.5)
+                continue
 
     # Error Handling
     def is_error_displayed(self) -> bool:
