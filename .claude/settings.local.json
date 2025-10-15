@@ -37,7 +37,15 @@
       "Bash(set HEADLESS=true)",
       "Bash(timeout 30 python -m pytest test_todo_crud.py::TestTodoCreation::test_create_todo_with_title_only -v -s)",
       "Bash(bash run_integration_tests.sh test_todo_crud.py::TestTodoCreation::test_create_todo_with_title_only)",
-      "Bash(timeout 180 docker run --rm --network selenium-flask-python-docker_todo_network -e TEST_MODE=integration -e FRONTEND_URL=http://frontend:3000 -e BACKEND_URL=http://backend:5000 -e BROWSER=firefox -e HEADLESS=true todo-tests python -m pytest test_todo_crud.py::TestTodoCreation::test_create_todo_with_title_only -v -s)"
+      "Bash(timeout 180 docker run --rm --network selenium-flask-python-docker_todo_network -e TEST_MODE=integration -e FRONTEND_URL=http://frontend:3000 -e BACKEND_URL=http://backend:5000 -e BROWSER=firefox -e HEADLESS=true todo-tests python -m pytest test_todo_crud.py::TestTodoCreation::test_create_todo_with_title_only -v -s)",
+      "Bash(run_unit_tests.bat)",
+      "Bash(testsrun_unit_tests.bat)",
+      "Bash(Select-String -Pattern \"(Step|DONE|exporting|naming)\")",
+      "Bash(docker stop:*)",
+      "Bash(docker restart:*)",
+      "Bash(docker start:*)",
+      "Bash(Select-String -Pattern \"(passed|failed|skipped|ERROR|Backend|Unit Tests)\")",
+      "Bash(Select-Object -Last 20)"
     ],
     "deny": [],
     "ask": []

@@ -34,19 +34,31 @@ if "%NETWORK%"=="" (
 echo Using network: %NETWORK%
 echo.
 
+REM Stop backend and database for unit tests (frontend only with mocked APIs)
+echo Stopping backend and database containers for unit tests...
+docker stop todo_backend todo_postgres >nul 2>&1
+echo Backend and database stopped - tests will use mocked APIs only
+echo.
+
 REM Run tests
 echo Running unit tests...
 docker run --rm ^
     --network %NETWORK% ^
     -e TEST_MODE=unit ^
     -e FRONTEND_URL=http://frontend:3000 ^
-    -e BROWSER=chrome ^
+    -e BROWSER=firefox ^
     -e HEADLESS=true ^
     -v "%cd%/test_reports:/tests/test_reports" ^
     -v "%cd%/test_screenshots:/tests/test_screenshots" ^
     todo-tests python -m pytest -v --html=test_reports/unit_report.html --self-contained-html -m "not integration"
 
 set EXIT_CODE=%ERRORLEVEL%
+
+REM Restart backend and database
+echo.
+echo Restarting backend and database containers...
+docker start todo_postgres todo_backend >nul 2>&1
+echo Containers restarted
 
 echo.
 echo ========================================

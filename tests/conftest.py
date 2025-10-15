@@ -135,44 +135,26 @@ def browser(driver):
     This is the main fixture tests should use
     """
     if is_unit_mode():
-        print("[TEST] Running in UNIT mode - will inject API interceptor")
+        print("[TEST] Running in UNIT mode - API interceptor will load from index.html")
 
-        # For Chrome, register the script to run on new document
-        # This executes BEFORE any page scripts run
-        if TestConfig.BROWSER == 'chrome':
-            interceptor_path = Path(__file__).parent / 'mocks' / 'api_interceptor.js'
-            with open(interceptor_path, 'r') as f:
-                interceptor_js = f.read()
+        # Navigate to frontend with ?mock=true parameter
+        # This triggers the interceptor to load BEFORE React initializes
+        mock_url = f"{TestConfig.FRONTEND_URL}?mock=true"
+        driver.get(mock_url)
 
-            # Use CDP to inject script that runs before page scripts
-            driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
-                'source': f"window.__MOCK_DELAY__ = {TestConfig.MOCK_DELAY_MS};\n{interceptor_js}"
-            })
-            print("[TEST] API interceptor registered via CDP - will run on page load")
-
-        # Navigate to frontend
-        driver.get(TestConfig.FRONTEND_URL)
-
-        # Wait a moment for the page to start loading
+        # Wait for page and interceptor to load
         import time
-        time.sleep(0.5)
+        time.sleep(1)
 
-        # For Firefox or as backup for Chrome, inject directly into page context
-        if TestConfig.BROWSER != 'chrome':
-            inject_api_interceptor(driver)
-            print("[TEST] API interceptor injected directly into page")
+        # Verify interceptor loaded
+        is_loaded = driver.execute_script("return window.__API_MOCKING_ENABLED__ === true;")
+        if is_loaded:
+            print("[TEST] API interceptor loaded successfully")
         else:
-            # Verify the interceptor loaded via CDP
-            try:
-                is_loaded = driver.execute_script("return window.__API_MOCKING_ENABLED__ === true;")
-                if is_loaded:
-                    print("[TEST] API interceptor confirmed active")
-                else:
-                    print("[TEST] WARNING: Interceptor not active, injecting directly")
-                    inject_api_interceptor(driver)
-            except Exception as e:
-                print(f"[TEST] Error checking interceptor: {e}, injecting directly")
-                inject_api_interceptor(driver)
+            print("[TEST] WARNING: API interceptor did not load!")
+
+        # Wait for React to mount and fetch data (will be intercepted)
+        time.sleep(0.5)
 
     else:
         print("[TEST] Running in INTEGRATION mode - using real backend")
