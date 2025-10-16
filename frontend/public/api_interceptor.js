@@ -7,6 +7,12 @@
 (function() {
     'use strict';
 
+    // Only initialize if mocking is enabled
+    if (!window.__ENABLE_API_MOCKING__) {
+        console.log('[MOCK] API mocking not enabled, skipping interceptor');
+        return;
+    }
+
     console.log('[MOCK] Initializing API Interceptor...');
 
     // Mock data storage - persist across page refreshes via sessionStorage

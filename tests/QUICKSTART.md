@@ -1,26 +1,41 @@
 # Quick Start - Running Tests
 
-## Prerequisites
+## Recommended: Run All Tests
 
-Make sure the application is running:
+The easiest way to run all tests is to use the comprehensive test runner:
+
+**Linux/Mac:**
 ```bash
-docker-compose up -d
+cd tests/scripts
+./run_all_tests.sh
 ```
 
-## Running Tests
+**Windows:**
+```cmd
+cd tests\scripts
+run_all_tests.bat
+```
+
+This will:
+1. Rebuild all Docker images
+2. Run backend unit tests (pytest with coverage)
+3. Run frontend unit tests (Selenium with mocked APIs)
+4. Run integration tests (Selenium with real backend)
+
+## Running Individual Test Suites
 
 ### For Windows Users
 
 **PowerShell (Recommended):**
 ```powershell
-cd tests
+cd tests\scripts
 .\run_unit_tests.ps1
 .\run_integration_tests.ps1
 ```
 
 **Command Prompt:**
 ```cmd
-cd tests
+cd tests\scripts
 run_unit_tests.bat
 run_integration_tests.bat
 ```
@@ -28,7 +43,7 @@ run_integration_tests.bat
 ### For Linux/Mac Users
 
 ```bash
-cd tests
+cd tests/scripts
 ./run_unit_tests.sh
 ./run_integration_tests.sh
 ```
@@ -136,6 +151,20 @@ docker run --rm \
   todo-tests python -m pytest -v --html=test_reports/integration_report.html --self-contained-html
 ```
 
+## Test Directory Structure
+
+```
+tests/
+├── scripts/              # All test runner scripts (run scripts from here!)
+│   ├── run_all_tests.sh/bat       # Comprehensive test runner (recommended)
+│   ├── run_unit_tests.sh/bat/ps1  # Frontend unit tests only
+│   └── run_integration_tests.sh/bat/ps1  # Integration tests only
+├── .archived/            # Debug and diagnostic tests (not in main suite)
+├── test_todo_crud.py     # Main test suite
+└── test_reports/         # HTML test reports generated here
+```
+
 ## For More Details
 
-See [TESTING.md](../TESTING.md) for comprehensive testing documentation.
+- See [TESTING.md](../TESTING.md) for comprehensive testing documentation
+- See [scripts/README.md](scripts/README.md) for detailed script documentation

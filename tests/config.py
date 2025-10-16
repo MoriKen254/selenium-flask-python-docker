@@ -32,6 +32,13 @@ class TestConfig:
     # In UNIT mode, this is ignored; in INTEGRATION mode, this is used
     BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:5000')
 
+    # Database Configuration (for integration tests)
+    DB_HOST = os.getenv('DB_HOST', 'localhost')
+    DB_PORT = int(os.getenv('DB_PORT', '5432'))
+    DB_NAME = os.getenv('POSTGRES_DB', 'tododb')
+    DB_USER = os.getenv('POSTGRES_USER', 'todouser')
+    DB_PASSWORD = os.getenv('POSTGRES_PASSWORD', 'todopass')
+
     # Selenium Configuration
     BROWSER = os.getenv('BROWSER', 'chrome').lower()
     HEADLESS = os.getenv('HEADLESS', 'true').lower() == 'true'

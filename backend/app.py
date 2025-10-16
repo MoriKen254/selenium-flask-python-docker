@@ -1,3 +1,13 @@
+"""Flask REST API for Todo List Application.
+
+This module provides a RESTful API for managing todo items with full CRUD operations.
+The API uses PostgreSQL for data persistence and supports CORS for frontend integration.
+
+Attributes:
+    app (Flask): The Flask application instance.
+    DATABASE_URL (str): PostgreSQL connection string from environment or default.
+"""
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import psycopg2
@@ -12,20 +22,58 @@ CORS(app)
 DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://todouser:todopass@postgres:5432/tododb')
 
 def get_db_connection():
-    """Create and return a database connection"""
+    """Create and return a database connection with dictionary cursor.
+
+    Returns:
+        psycopg2.connection: PostgreSQL database connection with RealDictCursor factory.
+
+    Note:
+        The connection uses RealDictCursor to return results as dictionaries
+        instead of tuples for easier JSON serialization.
+    """
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     return conn
 
 def serialize_datetime(obj):
-    """Convert datetime objects to ISO format strings"""
+    """Convert datetime objects to ISO format strings for JSON serialization.
+
+    Args:
+        obj: Any object, typically a datetime instance.
+
+    Returns:
+        str: ISO format datetime string if obj is datetime, otherwise returns obj unchanged.
+
+    Example:
+        >>> from datetime import datetime
+        >>> dt = datetime(2024, 1, 15, 10, 30, 0)
+        >>> serialize_datetime(dt)
+        '2024-01-15T10:30:00'
+    """
     if isinstance(obj, datetime):
         return obj.isoformat()
     return obj
 
-# Health check endpoint
 @app.route('/health', methods=['GET'])
 def health_check():
-    """Health check endpoint to verify API is running"""
+    """Health check endpoint to verify API and database connectivity.
+
+    Returns:
+        tuple: JSON response with status and HTTP status code.
+            - 200: Service is healthy and database is connected
+            - 500: Service is unhealthy with error details
+
+    Response Schema:
+        Success (200):
+            {
+                "status": "healthy",
+                "database": "connected"
+            }
+        Error (500):
+            {
+                "status": "unhealthy",
+                "error": "error message"
+            }
+    """
     try:
         conn = get_db_connection()
         conn.close()
@@ -33,10 +81,32 @@ def health_check():
     except Exception as e:
         return jsonify({'status': 'unhealthy', 'error': str(e)}), 500
 
-# GET all todos
 @app.route('/api/todos', methods=['GET'])
 def get_todos():
-    """Retrieve all todos from the database"""
+    """Retrieve all todos from the database ordered by creation date.
+
+    Returns:
+        tuple: JSON response with list of todos and HTTP status code.
+            - 200: Successfully retrieved todos
+            - 500: Server error with error message
+
+    Response Schema:
+        Success (200): Array of todo objects
+            [
+                {
+                    "id": 1,
+                    "title": "Todo title",
+                    "description": "Optional description",
+                    "completed": false,
+                    "created_at": "2024-01-15T10:30:00",
+                    "updated_at": "2024-01-15T10:30:00"
+                }
+            ]
+        Error (500):
+            {
+                "error": "error message"
+            }
+    """
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -57,10 +127,34 @@ def get_todos():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# GET single todo by ID
 @app.route('/api/todos/<int:todo_id>', methods=['GET'])
 def get_todo(todo_id):
-    """Retrieve a specific todo by ID"""
+    """Retrieve a specific todo by its ID.
+
+    Args:
+        todo_id (int): The unique identifier of the todo item.
+
+    Returns:
+        tuple: JSON response with todo object and HTTP status code.
+            - 200: Successfully retrieved todo
+            - 404: Todo not found
+            - 500: Server error
+
+    Response Schema:
+        Success (200):
+            {
+                "id": 1,
+                "title": "Todo title",
+                "description": "Description",
+                "completed": false,
+                "created_at": "2024-01-15T10:30:00",
+                "updated_at": "2024-01-15T10:30:00"
+            }
+        Error (404/500):
+            {
+                "error": "error message"
+            }
+    """
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -80,10 +174,38 @@ def get_todo(todo_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# POST create a new todo
 @app.route('/api/todos', methods=['POST'])
 def create_todo():
-    """Create a new todo item"""
+    """Create a new todo item.
+
+    Request Body:
+        {
+            "title": "Todo title" (required),
+            "description": "Optional description" (optional),
+            "completed": false (optional, defaults to false)
+        }
+
+    Returns:
+        tuple: JSON response with created todo and HTTP status code.
+            - 201: Todo created successfully
+            - 400: Invalid request (missing title)
+            - 500: Server error
+
+    Response Schema:
+        Success (201):
+            {
+                "id": 1,
+                "title": "New todo",
+                "description": "Description",
+                "completed": false,
+                "created_at": "2024-01-15T10:30:00",
+                "updated_at": "2024-01-15T10:30:00"
+            }
+        Error (400/500):
+            {
+                "error": "error message"
+            }
+    """
     try:
         data = request.get_json()
 
@@ -113,10 +235,43 @@ def create_todo():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# PUT update a todo
 @app.route('/api/todos/<int:todo_id>', methods=['PUT'])
 def update_todo(todo_id):
-    """Update an existing todo item"""
+    """Update an existing todo item with partial or full updates.
+
+    Args:
+        todo_id (int): The unique identifier of the todo to update.
+
+    Request Body:
+        Any combination of:
+        {
+            "title": "Updated title" (optional),
+            "description": "Updated description" (optional),
+            "completed": true (optional)
+        }
+
+    Returns:
+        tuple: JSON response with updated todo and HTTP status code.
+            - 200: Todo updated successfully
+            - 400: Invalid request (no data or no valid fields)
+            - 404: Todo not found
+            - 500: Server error
+
+    Response Schema:
+        Success (200):
+            {
+                "id": 1,
+                "title": "Updated title",
+                "description": "Updated description",
+                "completed": true,
+                "created_at": "2024-01-15T10:30:00",
+                "updated_at": "2024-01-15T11:00:00"
+            }
+        Error (400/404/500):
+            {
+                "error": "error message"
+            }
+    """
     try:
         data = request.get_json()
 
@@ -171,10 +326,29 @@ def update_todo(todo_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# DELETE a todo
 @app.route('/api/todos/<int:todo_id>', methods=['DELETE'])
 def delete_todo(todo_id):
-    """Delete a todo item"""
+    """Delete a todo item permanently.
+
+    Args:
+        todo_id (int): The unique identifier of the todo to delete.
+
+    Returns:
+        tuple: JSON response with confirmation message and HTTP status code.
+            - 200: Todo deleted successfully
+            - 404: Todo not found
+            - 500: Server error
+
+    Response Schema:
+        Success (200):
+            {
+                "message": "Todo deleted successfully"
+            }
+        Error (404/500):
+            {
+                "error": "error message"
+            }
+    """
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -195,10 +369,27 @@ def delete_todo(todo_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# Root endpoint
 @app.route('/', methods=['GET'])
 def root():
-    """API root endpoint"""
+    """API root endpoint providing service information and available endpoints.
+
+    Returns:
+        tuple: JSON response with API information and HTTP 200 status code.
+
+    Response Schema:
+        {
+            "message": "Todo List API",
+            "version": "1.0",
+            "endpoints": {
+                "GET /health": "Health check",
+                "GET /api/todos": "Get all todos",
+                "GET /api/todos/:id": "Get a specific todo",
+                "POST /api/todos": "Create a new todo",
+                "PUT /api/todos/:id": "Update a todo",
+                "DELETE /api/todos/:id": "Delete a todo"
+            }
+        }
+    """
     return jsonify({
         'message': 'Todo List API',
         'version': '1.0',

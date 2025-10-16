@@ -6,6 +6,26 @@
     <meta name="theme-color" content="#000000" />
     <meta name="description" content="Full-stack Todo List Application" />
     <title>Todo List App</title>
+    <!-- Runtime configuration - loads before React bundle -->
+    <script src="%PUBLIC_URL%/config.js"></script>
+    <!-- API Interceptor for unit tests - loads before React if ?mock=true parameter is present -->
+    <script>
+      (function() {
+        // Check if mock mode is enabled via query parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('mock') === 'true') {
+          console.log('[INDEX] Mock mode enabled - loading API interceptor');
+          window.__ENABLE_API_MOCKING__ = true;
+          window.__MOCK_DELAY__ = 50;
+
+          // Dynamically load the interceptor script
+          const script = document.createElement('script');
+          script.src = '/api_interceptor.js';
+          script.async = false; // Load synchronously to ensure it's ready before React
+          document.head.appendChild(script);
+        }
+      })();
+    </script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>

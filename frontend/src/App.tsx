@@ -1,30 +1,97 @@
+/**
+ * Todo List Application - Main Component
+ *
+ * A full-stack todo list application built with React, TypeScript, Flask, and PostgreSQL.
+ * This component provides a complete CRUD interface for managing todo items with real-time
+ * updates and error handling.
+ *
+ * @module App
+ */
+
 import React, { useState, useEffect, FormEvent, ChangeEvent } from 'react';
-import axios, { AxiosError } from 'axios';
 import './App.css';
 import { Todo, NewTodo, UpdateTodo } from './types/todo';
 
-const API_URL: string = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+// Use runtime configuration if available, fall back to build-time env var, then default
+declare global {
+  interface Window {
+    /** Runtime API URL configuration injected by config.js */
+    __API_URL__?: string;
+  }
+}
 
+/**
+ * Main application component for the Todo List.
+ *
+ * Manages the complete todo lifecycle including creation, reading, updating, and deletion.
+ * Uses dynamic API URL configuration to support both development and Docker environments.
+ *
+ * @component
+ * @returns {React.FC} The rendered todo list application
+ *
+ * @example
+ * ```tsx
+ * import App from './App';
+ *
+ * function Root() {
+ *   return <App />;
+ * }
+ * ```
+ */
 const App: React.FC = () => {
+  /**
+   * API URL determined at runtime from window.__API_URL__, environment variable, or default.
+   * This allows the same build to work in different environments (localhost, Docker, etc.)
+   */
+  const API_URL: string = React.useMemo(() => {
+    const runtimeApiUrl = (window as any)['__API_URL__'];
+    const buildTimeApiUrl = process.env.REACT_APP_API_URL;
+    return runtimeApiUrl || buildTimeApiUrl || 'http://localhost:5000';
+  }, []);
+
+  /** Array of all todos */
   const [todos, setTodos] = useState<Todo[]>([]);
+
+  /** Data for new todo being created */
   const [newTodo, setNewTodo] = useState<NewTodo>({ title: '', description: '' });
+
+  /** Todo currently being edited, or null if none */
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
+
+  /** Loading state for async operations */
   const [loading, setLoading] = useState<boolean>(false);
+
+  /** Error message to display, or null if no error */
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch all todos
+  // Fetch all todos on component mount
   useEffect(() => {
     fetchTodos();
   }, []);
 
+  /**
+   * Fetches all todos from the backend API.
+   *
+   * Updates the todos state with the fetched data or sets an error message if the request fails.
+   * Sets loading state during the fetch operation.
+   *
+   * @async
+   * @function fetchTodos
+   * @returns {Promise<void>}
+   * @throws {Error} If the API request fails
+   */
   const fetchTodos = async (): Promise<void> => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get<Todo[]>(`${API_URL}/api/todos`);
-      setTodos(response.data);
+      const response = await fetch(`${API_URL}/api/todos`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setTodos(data);
     } catch (err) {
-      const errorMessage = err instanceof AxiosError
+      const errorMessage = err instanceof Error
         ? err.message
         : 'An unknown error occurred';
       setError('Failed to fetch todos. Please make sure the backend is running.');
@@ -34,7 +101,17 @@ const App: React.FC = () => {
     }
   };
 
-  // Create a new todo
+  /**
+   * Creates a new todo item by submitting the form.
+   *
+   * Validates that a title is provided, sends a POST request to the API,
+   * and updates the local state with the new todo.
+   *
+   * @async
+   * @function handleCreateTodo
+   * @param {FormEvent<HTMLFormElement>} e - The form submission event
+   * @returns {Promise<void>}
+   */
   const handleCreateTodo = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     if (!newTodo.title.trim()) {
@@ -44,12 +121,22 @@ const App: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post<Todo>(`${API_URL}/api/todos`, newTodo);
-      setTodos([response.data, ...todos]);
+      const response = await fetch(`${API_URL}/api/todos`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newTodo),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setTodos([data, ...todos]);
       setNewTodo({ title: '', description: '' });
       setError(null);
     } catch (err) {
-      const errorMessage = err instanceof AxiosError
+      const errorMessage = err instanceof Error
         ? err.message
         : 'An unknown error occurred';
       setError('Failed to create todo');
@@ -59,16 +146,36 @@ const App: React.FC = () => {
     }
   };
 
-  // Update a todo
+  /**
+   * Updates an existing todo with partial or full data.
+   *
+   * Sends a PUT request to update the todo and refreshes the local state.
+   *
+   * @async
+   * @function handleUpdateTodo
+   * @param {number} id - The ID of the todo to update
+   * @param {UpdateTodo} updates - Object containing fields to update
+   * @returns {Promise<void>}
+   */
   const handleUpdateTodo = async (id: number, updates: UpdateTodo): Promise<void> => {
     setLoading(true);
     try {
-      const response = await axios.put<Todo>(`${API_URL}/api/todos/${id}`, updates);
-      setTodos(todos.map(todo => todo.id === id ? response.data : todo));
+      const response = await fetch(`${API_URL}/api/todos/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setTodos(todos.map(todo => todo.id === id ? data : todo));
       setEditingTodo(null);
       setError(null);
     } catch (err) {
-      const errorMessage = err instanceof AxiosError
+      const errorMessage = err instanceof Error
         ? err.message
         : 'An unknown error occurred';
       setError('Failed to update todo');
@@ -78,12 +185,28 @@ const App: React.FC = () => {
     }
   };
 
-  // Toggle todo completion
+  /**
+   * Toggles the completion status of a todo.
+   *
+   * @async
+   * @function handleToggleComplete
+   * @param {Todo} todo - The todo to toggle
+   * @returns {Promise<void>}
+   */
   const handleToggleComplete = async (todo: Todo): Promise<void> => {
     await handleUpdateTodo(todo.id, { completed: !todo.completed });
   };
 
-  // Delete a todo
+  /**
+   * Deletes a todo after user confirmation.
+   *
+   * Shows a confirmation dialog before permanently deleting the todo.
+   *
+   * @async
+   * @function handleDeleteTodo
+   * @param {number} id - The ID of the todo to delete
+   * @returns {Promise<void>}
+   */
   const handleDeleteTodo = async (id: number): Promise<void> => {
     if (!window.confirm('Are you sure you want to delete this todo?')) {
       return;
@@ -91,11 +214,16 @@ const App: React.FC = () => {
 
     setLoading(true);
     try {
-      await axios.delete(`${API_URL}/api/todos/${id}`);
+      const response = await fetch(`${API_URL}/api/todos/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       setTodos(todos.filter(todo => todo.id !== id));
       setError(null);
     } catch (err) {
-      const errorMessage = err instanceof AxiosError
+      const errorMessage = err instanceof Error
         ? err.message
         : 'An unknown error occurred';
       setError('Failed to delete todo');

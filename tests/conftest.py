@@ -4,6 +4,7 @@ Handles Selenium WebDriver setup with mode-aware API mocking
 """
 import pytest
 import os
+import psycopg2
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
@@ -22,6 +23,33 @@ def print_test_config():
     TestConfig.print_config()
 
 
+@pytest.fixture(scope='function', autouse=True)
+def clean_database():
+    """
+    Clean database before each test in integration mode
+    This ensures each test starts with a clean slate
+    """
+    if TestConfig.is_integration_mode():
+        try:
+            conn = psycopg2.connect(
+                host=TestConfig.DB_HOST,
+                port=TestConfig.DB_PORT,
+                dbname=TestConfig.DB_NAME,
+                user=TestConfig.DB_USER,
+                password=TestConfig.DB_PASSWORD
+            )
+            cursor = conn.cursor()
+            cursor.execute("TRUNCATE TABLE todos RESTART IDENTITY CASCADE;")
+            conn.commit()
+            cursor.close()
+            conn.close()
+            print("[TEST] Database cleaned before test")
+        except Exception as e:
+            print(f"[TEST] Warning: Could not clean database: {e}")
+
+    yield
+
+
 @pytest.fixture(scope='function')
 def driver(request):
     """
@@ -37,6 +65,12 @@ def driver(request):
         options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--disable-gpu')
         options.add_argument('--window-size=1920,1080')
+        # Reduce resource usage to prevent hangs
+        options.add_argument('--disable-extensions')
+        options.add_argument('--disable-software-rasterizer')
+        options.add_argument('--disable-background-networking')
+        options.add_argument('--disable-default-apps')
+        options.add_argument('--disable-sync')
 
         # Get chromedriver path and ensure we use the actual binary, not THIRD_PARTY_NOTICES
         driver_path = ChromeDriverManager().install()
@@ -66,7 +100,12 @@ def driver(request):
         options.add_argument('--width=1920')
         options.add_argument('--height=1080')
 
-        service = FirefoxService(GeckoDriverManager().install())
+        # Use pre-installed geckodriver if available, otherwise use webdriver-manager
+        geckodriver_path = '/usr/local/bin/geckodriver'
+        if os.path.exists(geckodriver_path):
+            service = FirefoxService(geckodriver_path)
+        else:
+            service = FirefoxService(GeckoDriverManager().install())
         web_driver = webdriver.Firefox(service=service, options=options)
 
     else:
@@ -95,15 +134,35 @@ def browser(driver):
     Enhanced browser fixture that automatically handles API mocking
     This is the main fixture tests should use
     """
-    # Navigate to frontend
-    driver.get(TestConfig.FRONTEND_URL)
-
-    # Inject API interceptor if in unit mode
     if is_unit_mode():
-        inject_api_interceptor(driver)
-        print("[TEST] API interceptor injected - running in UNIT mode")
+        print("[TEST] Running in UNIT mode - API interceptor will load from index.html")
+
+        # Navigate to frontend with ?mock=true parameter
+        # This triggers the interceptor to load BEFORE React initializes
+        mock_url = f"{TestConfig.FRONTEND_URL}?mock=true"
+        driver.get(mock_url)
+
+        # Wait for page and interceptor to load
+        import time
+        time.sleep(1)
+
+        # Verify interceptor loaded
+        is_loaded = driver.execute_script("return window.__API_MOCKING_ENABLED__ === true;")
+        if is_loaded:
+            print("[TEST] API interceptor loaded successfully")
+        else:
+            print("[TEST] WARNING: API interceptor did not load!")
+
+        # Wait for React to mount and fetch data (will be intercepted)
+        time.sleep(0.5)
+
     else:
         print("[TEST] Running in INTEGRATION mode - using real backend")
+        driver.get(TestConfig.FRONTEND_URL)
+
+        # Wait for React to mount and make initial fetch
+        import time
+        time.sleep(2)
 
     return driver
 
