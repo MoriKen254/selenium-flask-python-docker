@@ -7,8 +7,11 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-tododb}
       POSTGRES_USER: ${POSTGRES_USER:-todouser}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-todopass}
+      # Allow connections from all hosts (required for network deployment)
+      POSTGRES_HOST_AUTH_METHOD: ${POSTGRES_HOST_AUTH_METHOD:-md5}
     ports:
-      - "5432:5432"
+      # Bind to all interfaces (0.0.0.0) to allow network access
+      - "${POSTGRES_HOST:-0.0.0.0}:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -28,10 +31,12 @@ services:
     container_name: todo_backend
     environment:
       FLASK_APP: app.py
-      FLASK_ENV: development
+      FLASK_ENV: ${FLASK_ENV:-development}
       DATABASE_URL: postgresql://${POSTGRES_USER:-todouser}:${POSTGRES_PASSWORD:-todopass}@postgres:5432/${POSTGRES_DB:-tododb}
+      # Flask will bind to 0.0.0.0 by default (see app.py)
     ports:
-      - "5000:5000"
+      # Bind to all interfaces (0.0.0.0) to allow network access
+      - "${BACKEND_HOST:-0.0.0.0}:${BACKEND_PORT:-5000}:5000"
     volumes:
       - ./backend:/app
     depends_on:
@@ -48,9 +53,12 @@ services:
       dockerfile: Dockerfile
     container_name: todo_frontend
     environment:
-      REACT_APP_API_URL: http://localhost:5000
+      # API URL is dynamically determined by config.js at runtime
+      # No need to set REACT_APP_API_URL here
+      NODE_ENV: ${NODE_ENV:-development}
     ports:
-      - "3000:3000"
+      # Bind to all interfaces (0.0.0.0) to allow network access
+      - "${FRONTEND_HOST:-0.0.0.0}:${FRONTEND_PORT:-3000}:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -66,7 +74,8 @@ services:
     image: dbeaver/cloudbeaver:latest
     container_name: todo_cloudbeaver
     ports:
-      - "8978:8978"
+      # Bind to all interfaces (0.0.0.0) to allow network access
+      - "${CLOUDBEAVER_HOST:-0.0.0.0}:${CLOUDBEAVER_PORT:-8978}:8978"
     volumes:
       - cloudbeaver_data:/opt/cloudbeaver/workspace
     depends_on:
