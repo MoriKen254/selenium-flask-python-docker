@@ -58,7 +58,13 @@
       "Bash(cat:*)",
       "Bash(docker inspect:*)",
       "Bash(Select-String -Pattern \"(Name|IPv4Address)\" -Context 1)",
-      "Bash(call tests/run_integration_tests.bat)"
+      "Bash(call tests/run_integration_tests.bat)",
+      "Bash(mkdir:*)",
+      "Bash(mv:*)",
+      "Bash(rm:*)",
+      "Bash(chmod:*)",
+      "Bash(bash run_unit_tests.bat)",
+      "Bash(call tests/scripts/run_unit_tests.bat)"
     ],
     "deny": [],
     "ask": []

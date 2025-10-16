@@ -66,18 +66,28 @@ The test system has two modes controlled by `TEST_MODE` environment variable:
 - **Integration mode**: Tests run against full system with real backend
 
 ```bash
+# Run ALL tests (recommended) - Rebuilds images and runs backend + frontend tests
 # Linux/Mac
-cd tests
+cd tests/scripts
+./run_all_tests.sh
+
+# Windows CMD
+cd tests\scripts
+run_all_tests.bat
+
+# Run individual test suites
+# Linux/Mac
+cd tests/scripts
 ./run_unit_tests.sh           # Fast, no backend needed
 ./run_integration_tests.sh    # Full E2E, requires all services
 
 # Windows PowerShell
-cd tests
+cd tests\scripts
 .\run_unit_tests.ps1
 .\run_integration_tests.ps1
 
 # Windows CMD
-cd tests
+cd tests\scripts
 run_unit_tests.bat
 run_integration_tests.bat
 
@@ -208,15 +218,23 @@ def test_database_persistence(browser):
 
 ## Common Development Tasks
 
+### Running all tests (comprehensive)
+```bash
+# This rebuilds images and runs backend unit, frontend unit, and integration tests
+cd tests/scripts
+./run_all_tests.sh              # Linux/Mac
+run_all_tests.bat               # Windows CMD
+```
+
 ### Running a single test file
 ```bash
-cd tests
+cd tests/scripts
 ./run_unit_tests.sh test_todo_crud.py
 ```
 
 ### Running tests with visible browser (debug mode)
 ```bash
-cd tests
+cd tests/scripts
 export HEADLESS=false
 ./run_unit_tests.sh
 ```
@@ -334,9 +352,30 @@ lsof -ti:3000 | xargs kill -9
 
 **"Stale element reference" in tests**: Page Object Model re-queries elements after updates to prevent this
 
+## Test Directory Structure
+
+The `tests/` directory is organized as follows:
+
+```
+tests/
+├── scripts/              # All test runner scripts
+│   ├── run_all_tests.sh/bat       # Comprehensive test runner (recommended)
+│   ├── run_unit_tests.sh/bat/ps1  # Frontend unit tests only
+│   ├── run_integration_tests.sh/bat/ps1  # Integration tests only
+│   └── README.md         # Test scripts documentation
+├── .archived/            # Debug and diagnostic tests (not in main suite)
+├── pages/                # Page Object Model classes
+├── mocks/                # API mock interceptors
+├── test_todo_crud.py     # Main test suite (works in both modes)
+├── test_reports/         # HTML test reports
+└── test_screenshots/     # Failure screenshots
+```
+
 ## Additional Documentation
 
 - `README.md` - Comprehensive project documentation with setup instructions
 - `TESTING.md` - Detailed testing guide with architecture diagrams and examples
 - `WINDOWS.md` - Windows-specific development and testing instructions
 - `tests/QUICKSTART.md` - Quick reference for running tests
+- `tests/scripts/README.md` - Test scripts documentation
+- `tests/.archived/README.md` - Archived debug tests documentation
