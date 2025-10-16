@@ -72,6 +72,11 @@ def driver(request):
         options.add_argument('--disable-default-apps')
         options.add_argument('--disable-sync')
 
+        # Bypass proxy for Docker network addresses to avoid corporate web filters
+        # This prevents InterSafe WebFilter and similar tools from blocking tests
+        options.add_argument('--no-proxy-server')
+        options.add_argument('--proxy-bypass-list=localhost,127.0.0.1,frontend,backend,postgres')
+
         # Get chromedriver path and ensure we use the actual binary, not THIRD_PARTY_NOTICES
         driver_path = ChromeDriverManager().install()
 
@@ -99,6 +104,15 @@ def driver(request):
             options.add_argument('--headless')
         options.add_argument('--width=1920')
         options.add_argument('--height=1080')
+
+        # Configure proxy settings to bypass corporate web filters for Docker network
+        # This is critical when running in environments with InterSafe WebFilter or similar
+        options.set_preference('network.proxy.type', 0)  # 0 = No proxy (direct connection)
+        options.set_preference('network.proxy.no_proxies_on', 'localhost,127.0.0.1,frontend,backend,postgres')
+
+        # Additional preferences to ensure no proxy interference
+        options.set_preference('network.proxy.allow_hijacking_localhost', False)
+        options.set_preference('network.automatic-ntlm-auth.allow-non-fqdn', True)
 
         # Use pre-installed geckodriver if available, otherwise use webdriver-manager
         geckodriver_path = '/usr/local/bin/geckodriver'

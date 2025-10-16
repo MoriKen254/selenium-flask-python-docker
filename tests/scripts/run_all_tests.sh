@@ -45,6 +45,21 @@ OVERALL_SUCCESS=1
 # Change to project root directory
 cd "$(dirname "$0")/../.."
 
+# Load proxy configuration from .env.build if it exists
+if [ -f ".env.build" ]; then
+    echo "[INFO] Loading proxy configuration from .env.build"
+    export $(grep -v '^#' .env.build | xargs)
+    echo "[INFO] Proxy: ${HTTP_PROXY}"
+    BUILD_HTTP_PROXY="${HTTP_PROXY}"
+    BUILD_HTTPS_PROXY="${HTTPS_PROXY}"
+    BUILD_NO_PROXY="${NO_PROXY}"
+else
+    echo "[INFO] No .env.build found, building without proxy"
+    BUILD_HTTP_PROXY=""
+    BUILD_HTTPS_PROXY=""
+    BUILD_NO_PROXY="localhost,127.0.0.1"
+fi
+
 print_header "Starting Comprehensive Test Suite"
 echo "This will:"
 echo "  1. Rebuild all Docker images"
@@ -58,8 +73,11 @@ print_header "Step 1/4: Rebuilding Docker Images"
 echo "Stopping existing containers..."
 docker-compose down
 
-echo "Building fresh images..."
-if docker-compose build; then
+echo "Building fresh images with proxy configuration..."
+if docker-compose build \
+    --build-arg HTTP_PROXY="${BUILD_HTTP_PROXY}" \
+    --build-arg HTTPS_PROXY="${BUILD_HTTPS_PROXY}" \
+    --build-arg NO_PROXY="${BUILD_NO_PROXY}"; then
     print_success "Docker images rebuilt successfully"
 else
     print_error "Failed to rebuild Docker images"
@@ -77,7 +95,8 @@ sleep 5
 # Wait for backend health check
 echo "Checking backend health..."
 for i in {1..30}; do
-    if curl -s http://localhost:5000/health > /dev/null 2>&1; then
+    # Use --noproxy to bypass corporate proxy for localhost
+    if curl -s --noproxy localhost http://localhost:5000/health > /dev/null 2>&1; then
         print_success "Backend is healthy"
         break
     fi
@@ -107,7 +126,8 @@ sleep 5
 
 # Wait for frontend
 for i in {1..30}; do
-    if curl -s http://localhost:3000 > /dev/null 2>&1; then
+    # Use --noproxy to bypass corporate proxy for localhost
+    if curl -s --noproxy localhost http://localhost:3000 > /dev/null 2>&1; then
         print_success "Frontend is ready"
         break
     fi

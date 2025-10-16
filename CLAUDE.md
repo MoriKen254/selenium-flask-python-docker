@@ -103,6 +103,24 @@ run_integration_tests.bat
 - Health Check: http://localhost:5000/health
 - CloudBeaver: http://localhost:8978
 
+### Database Management with CloudBeaver
+
+CloudBeaver provides a web-based interface for managing the PostgreSQL database:
+
+1. Navigate to http://localhost:8978
+2. Complete the initial setup wizard with default admin credentials:
+   - **Admin Username**: `todouser`
+   - **Admin Password**: `Password_00`
+3. Create a new database connection:
+   - **Host**: `postgres` (or `localhost` if connecting from host machine)
+   - **Port**: `5432`
+   - **Database**: `tododb`
+   - **Username**: `todouser`
+   - **Password**: `todopass`
+4. Browse the database schema, run SQL queries, and manage data through the UI
+
+**Note**: Use internal DNS name `postgres` when connecting from within Docker network, or `localhost` when connecting from host machine.
+
 ## Testing Strategy Deep Dive
 
 ### Dual-Mode Testing Architecture
@@ -256,6 +274,10 @@ docker build -t todo-tests .
 ```bash
 docker-compose logs backend
 docker-compose logs -f backend  # Follow mode
+
+# Or use container name directly
+docker logs todo_backend
+docker logs -f todo_backend  # Follow mode
 ```
 
 ### Resetting database to initial state
@@ -266,7 +288,12 @@ docker-compose up
 
 ### Running backend tests with coverage
 ```bash
+# Using container name
 docker exec -it todo_backend pytest -v --cov=. --cov-report=term --cov-report=html
+
+# Or from backend directory on host (if Python is installed locally)
+cd backend
+pytest -v --cov=. --cov-report=term --cov-report=html
 ```
 
 ## Environment Variables
@@ -298,6 +325,19 @@ All services run on `todo_network` bridge network. Services communicate using co
 - Tests → Backend: `http://backend:5000` (integration mode)
 
 When running tests in Docker, use container names. When accessing from host machine, use `localhost`.
+
+### Service Name Reference
+
+| Service | Container Name | Internal DNS | Host Access |
+|---------|---------------|--------------|-------------|
+| PostgreSQL | `todo_postgres` | `postgres` | `localhost:5432` |
+| Backend | `todo_backend` | `backend` | `localhost:5000` |
+| Frontend | `todo_frontend` | `frontend` | `localhost:3000` |
+| CloudBeaver | `todo_cloudbeaver` | `cloudbeaver` | `localhost:8978` |
+
+**Docker Commands**: Use container names (e.g., `docker exec -it todo_backend bash`)
+**Inter-service Communication**: Use internal DNS names (e.g., `http://backend:5000`)
+**Browser/Host Access**: Use localhost (e.g., `http://localhost:3000`)
 
 ## API Endpoints
 

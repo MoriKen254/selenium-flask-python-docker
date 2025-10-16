@@ -64,7 +64,10 @@
       "Bash(rm:*)",
       "Bash(chmod:*)",
       "Bash(bash run_unit_tests.bat)",
-      "Bash(call tests/scripts/run_unit_tests.bat)"
+      "Bash(call tests/scripts/run_unit_tests.bat)",
+      "Bash(call run_unit_tests.bat test_todo_crud.py::TestTodoCreation::test_create_todo_with_title_only)",
+      "Bash(bash run_unit_tests.bat test_todo_crud.py::TestTodoCreation::test_create_todo_with_title_only)",
+      "Bash(bash:*)"
     ],
     "deny": [],
     "ask": []
