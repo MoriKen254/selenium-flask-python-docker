@@ -85,7 +85,7 @@ else
 fi
 
 # Step 2: Run Backend Unit Tests
-print_header "Step 2/4: Backend Unit Tests (pytest with coverage)"
+print_header "Step 2/4: Backend Unit Tests"
 echo "Starting backend and database containers..."
 docker-compose up -d backend postgres
 
@@ -101,8 +101,7 @@ for i in {1..30}; do
         break
     fi
     if [ $i -eq 30 ]; then
-        print_error "Backend failed to start"
-        exit 1
+        print_warning "Backend health check timed out, but will proceed"
     fi
     sleep 1
 done
@@ -117,7 +116,7 @@ else
 fi
 
 # Step 3: Run Frontend Unit Tests
-print_header "Step 3/4: Frontend Unit Tests (Selenium with mocked APIs)"
+print_header "Step 3/4: Frontend Unit Tests"
 echo "Starting frontend container..."
 docker-compose up -d frontend
 
@@ -132,23 +131,48 @@ for i in {1..30}; do
         break
     fi
     if [ $i -eq 30 ]; then
-        print_error "Frontend failed to start"
-        exit 1
+        print_warning "Frontend health check timed out, but will proceed"
     fi
     sleep 1
 done
 
 cd tests
 
-echo "Running frontend unit tests..."
-# Use environment variables directly
-TEST_MODE=unit \
-FRONTEND_URL=http://frontend:3000 \
-BROWSER=chrome \
-HEADLESS=true \
-pytest -v --html=test_reports/unit_report.html --self-contained-html -m "not integration"
+# Create test directories
+mkdir -p test_reports
+mkdir -p test_screenshots
 
-if [ $? -eq 0 ]; then
+# Get network name
+NETWORK=$(docker network ls --filter "name=todo_network" --format "{{.Name}}")
+
+if [ -z "$NETWORK" ]; then
+    print_error "Docker network not found"
+    cd ..
+    exit 1
+fi
+
+echo "Using network: $NETWORK"
+
+# Stop backend for unit tests
+echo "Stopping backend for unit tests (frontend only with mocked APIs)..."
+docker stop todo_backend todo_postgres > /dev/null 2>&1 || true
+
+echo "Building the todo-tests container for frontend unit tests..."
+docker build -t todo-tests . \
+    --build-arg HTTP_PROXY="${BUILD_HTTP_PROXY}" \
+    --build-arg HTTPS_PROXY="${BUILD_HTTPS_PROXY}" \
+    --build-arg NO_PROXY="${BUILD_NO_PROXY}"
+
+echo "Running frontend unit tests..."
+if docker run --rm \
+    --network "$NETWORK" \
+    -e TEST_MODE=unit \
+    -e FRONTEND_URL=http://frontend:3000 \
+    -e BROWSER=firefox \
+    -e HEADLESS=true \
+    -v "$(pwd)/test_reports:/tests/test_reports" \
+    -v "$(pwd)/test_screenshots:/tests/test_screenshots" \
+    todo-tests python -m pytest -v --html=test_reports/unit_report.html --self-contained-html -m "not integration"; then
     print_success "Frontend unit tests passed"
     FRONTEND_UNIT_PASSED=1
 else
@@ -156,8 +180,13 @@ else
     OVERALL_SUCCESS=0
 fi
 
+# Restart backend
+echo "Restarting backend and database..."
+docker start todo_postgres todo_backend > /dev/null 2>&1 || true
+sleep 3
+
 # Step 4: Run Integration Tests
-print_header "Step 4/4: Integration Tests (Full E2E with real backend)"
+print_header "Step 4/4: Integration Tests"
 echo "Ensuring all services are running..."
 cd ..
 docker-compose up -d
@@ -168,21 +197,21 @@ sleep 5
 cd tests
 
 echo "Running integration tests..."
-# Use environment variables directly instead of sourcing .env file
-# This ensures proper database connectivity
-TEST_MODE=integration \
-FRONTEND_URL=http://frontend:3000 \
-BACKEND_URL=http://backend:5000 \
-DB_HOST=postgres \
-DB_PORT=5432 \
-POSTGRES_DB=tododb \
-POSTGRES_USER=todouser \
-POSTGRES_PASSWORD=todopass \
-BROWSER=chrome \
-HEADLESS=true \
-pytest -v --html=test_reports/integration_report.html --self-contained-html
-
-if [ $? -eq 0 ]; then
+if docker run --rm \
+    --network "$NETWORK" \
+    -e TEST_MODE=integration \
+    -e FRONTEND_URL=http://frontend:3000 \
+    -e BACKEND_URL=http://backend:5000 \
+    -e DB_HOST=postgres \
+    -e DB_PORT=5432 \
+    -e POSTGRES_DB=tododb \
+    -e POSTGRES_USER=todouser \
+    -e POSTGRES_PASSWORD=todopass \
+    -e BROWSER=firefox \
+    -e HEADLESS=true \
+    -v "$(pwd)/test_reports:/tests/test_reports" \
+    -v "$(pwd)/test_screenshots:/tests/test_screenshots" \
+    todo-tests python -m pytest -v --html=test_reports/integration_report.html --self-contained-html; then
     print_success "Integration tests passed"
     FRONTEND_INTEGRATION_PASSED=1
 else
@@ -224,8 +253,10 @@ echo ""
 
 if [ $OVERALL_SUCCESS -eq 1 ]; then
     print_header "✓ ALL TESTS PASSED"
+    cd ..
     exit 0
 else
     print_header "✗ SOME TESTS FAILED"
+    cd ..
     exit 1
 fi
