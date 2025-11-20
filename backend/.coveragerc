@@ -1,10 +1,13 @@
 [run]
-source = .
+source = src
 omit =
     tests/*
+    */tests/*
     venv/*
     */site-packages/*
     */dist-packages/*
+    */htmlcov/*
+    */__pycache__/*
 
 [report]
 exclude_lines =

@@ -106,8 +106,11 @@ for i in {1..30}; do
     sleep 1
 done
 
+echo "Cleaning up old coverage files..."
+docker exec -u root todo_backend bash -c "rm -rf /app/htmlcov /app/coverage.xml /app/.coverage && mkdir -p /app/htmlcov && chown -R todouser:todouser /app"
+
 echo "Running backend tests with coverage..."
-if docker exec todo_backend pytest -v --cov=. --cov-report=html --cov-report=term; then
+if docker exec todo_backend pytest -v; then
     print_success "Backend tests passed"
     BACKEND_TESTS_PASSED=1
 else

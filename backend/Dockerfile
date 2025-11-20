@@ -30,7 +30,10 @@ COPY init.sql .
 
 # Create non-root user for security
 RUN groupadd -r todouser && useradd -r -g todouser todouser
-RUN chown -R todouser:todouser /app
+
+# Create htmlcov directory with proper permissions
+RUN mkdir -p /app/htmlcov && chown -R todouser:todouser /app
+
 USER todouser
 
 # Expose port
