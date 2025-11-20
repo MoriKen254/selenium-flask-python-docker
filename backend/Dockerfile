@@ -1,34 +1,47 @@
+# Use Python 3.11 slim image
 FROM python:3.11-slim
-
-# Build arguments for proxy configuration (optional)
-# Pass these at build time: docker build --build-arg HTTP_PROXY=http://proxy:port ...
-ARG HTTP_PROXY=""
-ARG HTTPS_PROXY=""
-ARG NO_PROXY="localhost,127.0.0.1"
-
-# Set proxy environment variables only if provided
-ENV http_proxy="${HTTP_PROXY}"
-ENV https_proxy="${HTTPS_PROXY}"
-ENV no_proxy="${NO_PROXY}"
 
 # Set working directory
 WORKDIR /app
 
+# Set environment variables
+ENV PYTHONPATH=/app/src
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    postgresql-client \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        gcc \
+        postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python dependencies
+# Copy requirements first for better caching
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY . .
+# Copy pyproject.toml and install package
+COPY pyproject.toml .
+COPY src/ ./src/
+RUN pip install -e .
+
+# Copy initialization files
+COPY init.sql .
+
+# Create non-root user for security
+RUN groupadd -r todouser && useradd -r -g todouser todouser
+
+# Create htmlcov directory with proper permissions
+RUN mkdir -p /app/htmlcov && chown -R todouser:todouser /app
+
+USER todouser
 
 # Expose port
 EXPOSE 5000
 
-# Run the application
-CMD ["python", "app.py"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:5000/health || exit 1
+
+# Use the CLI entry point
+CMD ["todo-api", "--host", "0.0.0.0", "--port", "5000"]

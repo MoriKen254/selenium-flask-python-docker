@@ -101,8 +101,11 @@ if %CURL_EXIT% NEQ 0 (
     echo [SUCCESS] Backend is healthy
 )
 
+echo Cleaning up old coverage files...
+docker exec -u root todo_backend bash -c "rm -rf /app/htmlcov /app/coverage.xml /app/.coverage && mkdir -p /app/htmlcov && chown -R todouser:todouser /app"
+
 echo Running backend tests with coverage...
-docker exec todo_backend pytest -v --cov=. --cov-report=html --cov-report=term
+docker exec todo_backend pytest -v
 if errorlevel 1 (
     echo [FAILED] Backend tests failed
     set OVERALL_SUCCESS=0

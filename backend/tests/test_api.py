@@ -1,6 +1,7 @@
 import pytest
 import json
 from datetime import datetime
+from todo_api import __version__
 
 
 class TestHealthEndpoint:
@@ -24,7 +25,7 @@ class TestRootEndpoint:
         assert response.status_code == 200
         data = response.get_json()
         assert data['message'] == 'Todo List API'
-        assert data['version'] == '1.0'
+        assert data['version'] == __version__
         assert 'endpoints' in data
         assert 'GET /api/todos' in data['endpoints']
 

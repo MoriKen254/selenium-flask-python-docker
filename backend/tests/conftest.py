@@ -1,191 +1,159 @@
+"""Test configuration and fixtures for Todo API tests."""
+
 import pytest
-import psycopg2
-from psycopg2.extras import RealDictCursor
+from typing import Generator, Any, List, Dict
 import os
-import sys
+import psycopg2
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
-# Add parent directory to path to import app
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-from app import app as flask_app
-
-# Test database configuration
-TEST_DATABASE_URL = os.getenv('TEST_DATABASE_URL', 'postgresql://todouser:todopass@postgres:5432/tododb_test')
-
-
-@pytest.fixture(scope='session')
-def test_db():
-    """Create a test database for the entire test session"""
-    # Parse the database URL
-    import re
-    match = re.match(r'postgresql://([^:]+):([^@]+)@([^:]+):(\d+)/(.+)', TEST_DATABASE_URL)
-    if match:
-        user, password, host, port, dbname = match.groups()
-
-        # Connect to default postgres database to create test database
-        conn = psycopg2.connect(
-            host=host,
-            port=port,
-            user=user,
-            password=password,
-            database='tododb'  # Connect to main database
-        )
-        conn.autocommit = True
-        cur = conn.cursor()
-
-        # Drop test database if exists and create new one
-        try:
-            cur.execute(f"DROP DATABASE IF EXISTS {dbname}")
-            cur.execute(f"CREATE DATABASE {dbname}")
-        except Exception as e:
-            print(f"Database creation skipped or failed: {e}")
-        finally:
-            cur.close()
-            conn.close()
-
-        # Connect to test database and create schema
-        test_conn = psycopg2.connect(TEST_DATABASE_URL)
-        test_cur = test_conn.cursor()
-
-        # Create todos table
-        test_cur.execute("""
-            CREATE TABLE IF NOT EXISTS todos (
-                id SERIAL PRIMARY KEY,
-                title VARCHAR(255) NOT NULL,
-                description TEXT,
-                completed BOOLEAN DEFAULT FALSE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-
-        # Create trigger function
-        test_cur.execute("""
-            CREATE OR REPLACE FUNCTION update_updated_at_column()
-            RETURNS TRIGGER AS $$
-            BEGIN
-                NEW.updated_at = CURRENT_TIMESTAMP;
-                RETURN NEW;
-            END;
-            $$ language 'plpgsql'
-        """)
-
-        # Create trigger
-        test_cur.execute("""
-            DROP TRIGGER IF EXISTS update_todos_updated_at ON todos;
-            CREATE TRIGGER update_todos_updated_at
-                BEFORE UPDATE ON todos
-                FOR EACH ROW
-                EXECUTE FUNCTION update_updated_at_column()
-        """)
-
-        test_conn.commit()
-        test_cur.close()
-        test_conn.close()
-
-        yield TEST_DATABASE_URL
-
-        # Cleanup after all tests
-        conn = psycopg2.connect(
-            host=host,
-            port=port,
-            user=user,
-            password=password,
-            database='tododb'
-        )
-        conn.autocommit = True
-        cur = conn.cursor()
-        try:
-            cur.execute(f"DROP DATABASE IF EXISTS {dbname}")
-        except Exception as e:
-            print(f"Test database cleanup failed: {e}")
-        finally:
-            cur.close()
-            conn.close()
-
-
-@pytest.fixture(scope='function')
-def db_connection(test_db):
-    """Provide a database connection for each test"""
-    conn = psycopg2.connect(test_db, cursor_factory=RealDictCursor)
-    yield conn
-    conn.rollback()
-    conn.close()
-
-
-@pytest.fixture(scope='function')
-def clean_db(db_connection):
-    """Clean the database before each test"""
-    cur = db_connection.cursor()
-    cur.execute("DELETE FROM todos")
-    db_connection.commit()
-    cur.close()
-    yield db_connection
+from todo_api.app import create_app
 
 
 @pytest.fixture
-def app(monkeypatch, test_db):
-    """Create and configure a test Flask application instance"""
-    # Set the test database URL
-    monkeypatch.setenv('DATABASE_URL', test_db)
-
-    # Monkey patch the DATABASE_URL in the app module
-    import app as app_module
-    monkeypatch.setattr(app_module, 'DATABASE_URL', test_db)
-
-    flask_app.config['TESTING'] = True
-    flask_app.config['DATABASE_URL'] = test_db
-
-    yield flask_app
+def app():
+    """Create application for the tests."""
+    test_config = {
+        'TESTING': True,
+        'DATABASE_URL': os.getenv('TEST_DATABASE_URL', 'sqlite:///:memory:')
+    }
+    
+    # Try to create PostgreSQL test database if available
+    if 'postgresql' in test_config['DATABASE_URL']:
+        test_db_name = f"test_tododb_{os.getpid()}"
+        test_config['DATABASE_URL'] = f'postgresql://todouser:todopass@postgres:5432/{test_db_name}'
+        
+        try:
+            conn = psycopg2.connect(
+                host='postgres',
+                database='postgres',
+                user='todouser',
+                password='todopass'
+            )
+            conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+            cur = conn.cursor()
+            cur.execute(f'CREATE DATABASE "{test_db_name}"')
+            cur.close()
+            conn.close()
+            
+            # Create tables in test database
+            conn = psycopg2.connect(test_config['DATABASE_URL'])
+            cur = conn.cursor()
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS todos (
+                    id SERIAL PRIMARY KEY,
+                    title VARCHAR(255) NOT NULL,
+                    description TEXT,
+                    completed BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            conn.commit()
+            cur.close()
+            conn.close()
+            
+        except Exception:
+            # Fallback to SQLite if PostgreSQL is not available
+            test_config['DATABASE_URL'] = 'sqlite:///:memory:'
+    
+    app = create_app(test_config)
+    
+    with app.app_context():
+        yield app
+    
+    # Cleanup: Drop test database if PostgreSQL was used
+    if 'postgresql' in test_config['DATABASE_URL']:
+        try:
+            conn = psycopg2.connect(
+                host='postgres',
+                database='postgres',
+                user='todouser',
+                password='todopass'
+            )
+            conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+            cur = conn.cursor()
+            cur.execute(f'DROP DATABASE IF EXISTS "{test_db_name}"')
+            cur.close()
+            conn.close()
+        except Exception:
+            pass  # Cleanup failed, but that's ok for tests
 
 
 @pytest.fixture
 def client(app):
-    """A test client for the app"""
+    """A test client for the app."""
     return app.test_client()
 
 
 @pytest.fixture
 def runner(app):
-    """A test CLI runner for the app"""
+    """A test runner for the app's Click commands."""
     return app.test_cli_runner()
 
 
 @pytest.fixture
+def clean_db(app, client):
+    """Clean database fixture that ensures a fresh database state for each test."""
+    # Clean up any existing todos
+    try:
+        client.get('/api/todos')  # This will ensure database connection is established
+        # Get all todos and delete them
+        response = client.get('/api/todos')
+        if response.status_code == 200:
+            todos = response.get_json()
+            for todo in todos:
+                client.delete(f'/api/todos/{todo["id"]}')
+    except Exception:
+        pass  # If cleanup fails, continue with test
+    
+    yield
+    
+    # Post-test cleanup
+    try:
+        response = client.get('/api/todos')
+        if response.status_code == 200:
+            todos = response.get_json()
+            for todo in todos:
+                client.delete(f'/api/todos/{todo["id"]}')
+    except Exception:
+        pass
+
+
+@pytest.fixture
 def sample_todo():
-    """Sample todo data for testing"""
+    """Sample todo data for testing."""
     return {
         'title': 'Test Todo',
-        'description': 'This is a test todo',
+        'description': 'This is a test todo item',
         'completed': False
     }
 
 
 @pytest.fixture
-def sample_todos():
-    """Sample multiple todos for testing"""
-    return [
-        {'title': 'Todo 1', 'description': 'First todo', 'completed': False},
-        {'title': 'Todo 2', 'description': 'Second todo', 'completed': True},
-        {'title': 'Todo 3', 'description': 'Third todo', 'completed': False}
+def seed_todos(app, client, clean_db) -> List[Dict]:
+    """Create seed data for tests that need existing todos."""
+    todos_data = [
+        {
+            'title': 'First Todo',
+            'description': 'First test todo',
+            'completed': False
+        },
+        {
+            'title': 'Second Todo', 
+            'description': 'Second test todo',
+            'completed': True
+        },
+        {
+            'title': 'Third Todo',
+            'description': 'Third test todo',
+            'completed': False
+        }
     ]
-
-
-@pytest.fixture
-def create_todo(client):
-    """Helper fixture to create a todo via API"""
-    def _create_todo(data):
-        response = client.post('/api/todos', json=data)
-        return response
-    return _create_todo
-
-
-@pytest.fixture
-def seed_todos(client, sample_todos):
-    """Seed the database with sample todos"""
+    
     created_todos = []
-    for todo_data in sample_todos:
+    for todo_data in todos_data:
         response = client.post('/api/todos', json=todo_data)
         if response.status_code == 201:
             created_todos.append(response.get_json())
+    
     return created_todos
